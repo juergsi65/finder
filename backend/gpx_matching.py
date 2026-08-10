@@ -1,8 +1,12 @@
 """GPX parsing + radius matching logic - the core of the TrailFound matching prototype."""
+import math
 import re
+from dataclasses import dataclass
+from datetime import datetime
 from typing import List, Tuple, Optional
 
 import gpxpy
+import gpxpy.gpx
 
 from geo import haversine_distance_m, point_to_segment_distance_m
 from models import FoundItem
@@ -13,6 +17,23 @@ MAX_RADIUS_M = 1000.0
 # keep the response small - this is purely for the map preview, matching
 # always runs against the full-resolution track.
 MAX_TRACK_POINTS_IN_RESPONSE = 1000
+
+
+class GpxParseError(ValueError):
+    """Raised for any problem turning uploaded bytes into usable track points.
+
+    Kept distinct from generic exceptions so the API layer can always map it
+    to a clean 400 response instead of leaking a raw parser traceback.
+    """
+
+
+@dataclass(frozen=True)
+class GpxPoint:
+    """A single validated track point: coordinates plus optional timestamp."""
+
+    lat: float
+    lng: float
+    time: Optional[datetime] = None
 
 
 def _decode_gpx_bytes(gpx_bytes: bytes) -> str:
@@ -43,38 +64,101 @@ def _decode_gpx_bytes(gpx_bytes: bytes) -> str:
     return gpx_bytes.decode("latin-1")
 
 
-def extract_track_points(gpx_bytes: bytes) -> List[Tuple[float, float]]:
-    """Parse a GPX file and return a flat list of (lat, lng) points.
+def _valid_coordinate(lat, lng) -> bool:
+    """Reject points that can't possibly be real GPS fixes.
+
+    Real-world GPX files occasionally contain corrupted rows (GPS glitches,
+    firmware bugs writing lat/lon as 0/NaN, hand-edited files, ...). Letting
+    those through would silently poison the distance calculation - e.g. a
+    (0, 0) "null island" point would just look like a very distant, harmless
+    track point, but a NaN would make every downstream comparison undefined.
+    """
+    if lat is None or lng is None:
+        return False
+    if not (math.isfinite(lat) and math.isfinite(lng)):
+        return False
+    if not (-90.0 <= lat <= 90.0):
+        return False
+    if not (-180.0 <= lng <= 180.0):
+        return False
+    return True
+
+
+def extract_track_points(gpx_bytes: bytes) -> List[GpxPoint]:
+    """Parse a GPX file and return a flat, validated list of GpxPoints.
 
     Covers tracks, routes and waypoints so most GPX exports (Garmin,
-    Strava, Komoot, ...) work out of the box. Consecutive duplicate points
-    are dropped since they add nothing to the matching and would otherwise
-    create zero-length segments.
+    Strava, Komoot, ...) work out of the box. Coordinates are validated
+    (finite, in-range) and invalid rows are skipped rather than corrupting
+    the match; timestamps are carried along when present but are optional -
+    plenty of valid GPX files (manually drawn routes, some route exports)
+    have none.
+
+    Raises GpxParseError with a human-readable (German) message for
+    anything that isn't a parseable GPX document.
     """
-    gpx = gpxpy.parse(_decode_gpx_bytes(gpx_bytes))
-    points: List[Tuple[float, float]] = []
+    try:
+        xml_text = _decode_gpx_bytes(gpx_bytes)
+        gpx = gpxpy.parse(xml_text)
+    except gpxpy.gpx.GPXXMLSyntaxException as exc:
+        raise GpxParseError("Die Datei ist kein gültiges XML/GPX-Dokument.") from exc
+    except gpxpy.gpx.GPXException as exc:
+        raise GpxParseError(f"Die GPX-Datei ist ungültig: {exc}") from exc
+    except Exception as exc:  # noqa: BLE001 - anything else is still "bad input", not a 500
+        raise GpxParseError(f"GPX konnte nicht gelesen werden: {exc}") from exc
+
+    raw_points: List[Tuple[float, float, Optional[datetime]]] = []
 
     for track in gpx.tracks:
         for segment in track.segments:
             for point in segment.points:
-                points.append((point.latitude, point.longitude))
+                raw_points.append((point.latitude, point.longitude, point.time))
 
     for route in gpx.routes:
         for point in route.points:
-            points.append((point.latitude, point.longitude))
+            raw_points.append((point.latitude, point.longitude, point.time))
 
     # Only fall back to waypoints if the file has no actual track/route -
     # a GPX can carry unrelated points-of-interest as waypoints alongside a
     # track, and lumping those in would distort segment-based matching.
-    if not points:
+    if not raw_points:
         for waypoint in gpx.waypoints:
-            points.append((waypoint.latitude, waypoint.longitude))
+            raw_points.append((waypoint.latitude, waypoint.longitude, waypoint.time))
 
-    deduped: List[Tuple[float, float]] = []
+    points: List[GpxPoint] = []
+    skipped_invalid = 0
+    for lat, lng, time in raw_points:
+        if not _valid_coordinate(lat, lng):
+            skipped_invalid += 1
+            continue
+        points.append(GpxPoint(lat=lat, lng=lng, time=time))
+
+    if not points and skipped_invalid:
+        raise GpxParseError(
+            f"Alle {skipped_invalid} Koordinaten in der GPX-Datei sind ungültig "
+            "(außerhalb des gültigen Wertebereichs)."
+        )
+
+    # If (and only if) every point carries a timestamp, sort chronologically.
+    # This guards against multi-segment files where segments aren't stored
+    # in time order, without silently reordering files that never had
+    # reliable timestamps to begin with.
+    if points and all(p.time is not None for p in points):
+        points.sort(key=lambda p: p.time)
+
+    deduped: List[GpxPoint] = []
     for p in points:
-        if not deduped or deduped[-1] != p:
+        if not deduped or (deduped[-1].lat, deduped[-1].lng) != (p.lat, p.lng):
             deduped.append(p)
     return deduped
+
+
+def track_time_range(points: List[GpxPoint]) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """Earliest/latest timestamp in the track, or (None, None) if it has none."""
+    times = [p.time for p in points if p.time is not None]
+    if not times:
+        return None, None
+    return min(times), max(times)
 
 
 def _closest_point_on_track(
@@ -84,7 +168,8 @@ def _closest_point_on_track(
 
     Walks every segment of the track and keeps the best perpendicular
     distance, not just the distance to the recorded vertices - this is what
-    correctly matches items that sit *between* two GPS fixes.
+    correctly matches items that sit *between* two GPS fixes. Degenerate
+    single-point "tracks" fall back to a plain Haversine point distance.
     """
     if len(track_points) == 1:
         only = track_points[0]
@@ -103,7 +188,7 @@ def _closest_point_on_track(
 
 
 def find_matches(
-    track_points: List[Tuple[float, float]],
+    track_points: List[GpxPoint],
     found_items: List[FoundItem],
     radius_m: float = DEFAULT_RADIUS_M,
 ):
@@ -114,10 +199,19 @@ def find_matches(
     every item within radius_m of the route. Each item appears at most
     once (its best/closest match), sorted nearest-first.
     """
+    if radius_m <= 0:
+        raise ValueError("radius_m must be positive")
+
+    plain_points = [(p.lat, p.lng) for p in track_points]
     matches = []
 
     for item in found_items:
-        distance, closest_point = _closest_point_on_track((item.lat, item.lng), track_points)
+        if not _valid_coordinate(item.lat, item.lng):
+            # Defensive: a corrupted found-item row should never crash the
+            # whole match request for everyone else.
+            continue
+
+        distance, closest_point = _closest_point_on_track((item.lat, item.lng), plain_points)
 
         if distance <= radius_m:
             matches.append(
@@ -132,7 +226,7 @@ def find_matches(
     return matches
 
 
-def downsample_track(track_points: List[Tuple[float, float]], max_points: int = MAX_TRACK_POINTS_IN_RESPONSE):
+def downsample_track(track_points: List[GpxPoint], max_points: int = MAX_TRACK_POINTS_IN_RESPONSE):
     """Evenly thin out a track for the API response (map preview only)."""
     if len(track_points) <= max_points:
         return track_points

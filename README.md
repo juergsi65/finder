@@ -18,24 +18,35 @@ GPX-Track.
    innerhalb von **30 Metern** liegt. Bei einem Treffer erscheint eine
    Benachrichtigung mit Karte (Route + Fund-Pin + exaktem Trefferpunkt) und
    Details.
+4. **Konten:** Registrierung/Login (E-Mail + Passwort, JWT-Session). Das
+   **erste** registrierte Konto auf einer frischen Installation wird
+   automatisch zum Admin - alle weiteren Konten sind normale Nutzer:innen.
+   Admins sehen unter `/admin` Nutzer- und Fund-Pin-Verwaltung inkl.
+   Löschfunktion. Im Profil (`/profil`) lässt sich (als Platzhalter für
+   spätere echte OAuth-Anbindung) eine Strava-/Komoot-/Garmin-Konto-ID
+   hinterlegen.
 
 ## Tech-Stack
 
-- **Frontend:** React + Vite, Tailwind CSS, React-Leaflet (OpenStreetMap)
-- **Backend:** Python + FastAPI, `gpxpy` fürs GPX-Parsing
+- **Frontend:** React + Vite, Tailwind CSS, React-Leaflet (OpenStreetMap),
+  React Router
+- **Backend:** Python + FastAPI, `gpxpy` fürs GPX-Parsing, `bcrypt` fürs
+  Passwort-Hashing, `PyJWT` für Login-Sessions
 - **Datenbank:** SQLite (SQLAlchemy) - Koordinaten als Lat/Lng-Spalten,
-  Radius-Abgleich per Haversine-Formel in Python. Für den Umstieg auf
-  PostgreSQL + PostGIS müssten nur `database.py`/`main.py` angepasst werden.
+  Radius-Abgleich per Punkt-zu-Strecken-Projektion in Python. Für den
+  Umstieg auf PostgreSQL + PostGIS müssten nur `database.py`/`main.py`
+  angepasst werden.
 
 ## Projektstruktur
 
 ```
 backend/
-  main.py            FastAPI-App, REST-Endpunkte
-  models.py          SQLAlchemy-Modell FoundItem
+  main.py            FastAPI-App, REST-Endpunkte (inkl. Auth + Admin)
+  models.py          SQLAlchemy-Modelle: FoundItem, User
   schemas.py         Pydantic-Schemas + Kategorien
   database.py        SQLite-Setup
-  geo.py             Haversine-Distanzberechnung
+  auth.py            Passwort-Hashing (bcrypt) + JWT-Erzeugung/-Prüfung
+  geo.py             Punkt-zu-Strecken-Distanzberechnung
   gpx_matching.py     GPX-Parsing + Matching-Logik (Kernstück)
   requirements.txt
   uploads/           Hochgeladene Fotos (zur Laufzeit)
@@ -45,7 +56,11 @@ frontend/
     pages/Home.jsx         Startseite mit den zwei Haupt-Buttons
     pages/FinderMode.jsx   Modus 1: Pin setzen + Formular
     pages/SeekerMode.jsx   Modus 2: GPX-Upload + Treffer-Anzeige
-    components/            Navbar, MapPicker (Leaflet)
+    pages/Login.jsx, Register.jsx   Anmeldung / Registrierung
+    pages/Profile.jsx      Profil + Platzhalter für Strava/Komoot/Garmin
+    pages/Admin.jsx        Nutzer- + Fund-Pin-Verwaltung (nur Admins)
+    AuthContext.jsx         Login-Status, JWT-Handling
+    components/            Navbar, MapPicker (Leaflet), CategoryPicker, ...
     api.js                 Backend-API-Client
   Dockerfile               Multi-Stage-Build (Vite-Build -> Nginx)
   nginx.conf               Statisches Hosting + Proxy zu /api, /uploads
@@ -96,6 +111,17 @@ SQLite-Datenbank (`backend_data`) und hochgeladene Fotos (`backend_uploads`)
 liegen in benannten Docker-Volumes und überleben damit Neustarts/Updates
 der Container.
 
+**Wichtig für den Produktivbetrieb:** Setze `JWT_SECRET` auf einen eigenen,
+zufälligen Wert (signiert die Login-Sessions), z.B. über eine `.env`-Datei
+neben `docker-compose.yml`:
+
+```bash
+echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
+```
+
+Ohne eigenen Wert läuft ein unsicherer Standardwert - für lokales Testen ok,
+für einen öffentlich erreichbaren Server nicht.
+
 Danach ist die App unter `http://<Server-IP>` (Port 80) erreichbar, die
 API direkt unter `http://<Server-IP>:8000` (inkl. `/docs`).
 
@@ -118,8 +144,15 @@ docker compose down
 | GET     | `/api/categories`     | Verfügbare Kategorien                      |
 | GET     | `/api/found-items`    | Alle Fund-Pins (optional `?category=`)     |
 | POST    | `/api/found-items`    | Neuen Fund-Pin anlegen (multipart/form)    |
-| DELETE  | `/api/found-items/{id}` | Fund-Pin löschen                         |
+| DELETE  | `/api/found-items/{id}` | Fund-Pin löschen (nur Admin)             |
 | POST    | `/api/match`          | GPX-Datei + Kategorie -> Treffer im 30m-Radius |
+| POST    | `/api/auth/register`  | Registrieren (erstes Konto wird Admin)     |
+| POST    | `/api/auth/login`     | Login, gibt JWT zurück                     |
+| GET     | `/api/auth/me`        | Eigenes Profil (Login erforderlich)        |
+| PATCH   | `/api/auth/me`        | Profil aktualisieren (Strava/Komoot/Garmin-ID) |
+| GET     | `/api/admin/users`    | Alle Nutzer (nur Admin)                    |
+| DELETE  | `/api/admin/users/{id}` | Nutzer löschen (nur Admin)               |
+| GET     | `/api/admin/stats`    | Systemweite Kennzahlen (nur Admin)         |
 
 Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 `http://localhost:8000/docs`.
@@ -137,6 +170,10 @@ Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
   ungültige Radius-Werte (klare deutschsprachige Fehlermeldungen).
 - Fotos werden lokal unter `backend/uploads/` gespeichert und über
   `/uploads/...` ausgeliefert.
-- Kein Login/Auth - für den MVP bewusst weggelassen.
-- Nächste Schritte für einen produktiven Einsatz: PostgreSQL+PostGIS,
-  Nutzer-Accounts, Push-Benachrichtigungen, Rate-Limiting für Uploads.
+- Login/Registrierung mit gehashten Passwörtern (bcrypt) und JWT-Sessions;
+  Rollenmodell "user"/"admin". Strava-/Komoot-/Garmin-Verknüpfung ist als
+  Datenfeld + UI vorbereitet, aber noch ohne echten OAuth-Flow (manuelle
+  ID-Eingabe als Platzhalter).
+- Nächste Schritte für einen produktiven Einsatz: PostgreSQL+PostGIS, echte
+  OAuth-Anbindung für Strava/Komoot/Garmin, Passwort-Reset,
+  Push-Benachrichtigungen, Rate-Limiting für Uploads/Login.

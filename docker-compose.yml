@@ -6,6 +6,10 @@ services:
     restart: unless-stopped
     environment:
       - DATA_DIR=/app/data
+      # Signs login sessions (JWT). Override in a .env file next to this
+      # compose file (JWT_SECRET=...) before deploying for real - anyone
+      # who knows this value can forge valid login tokens.
+      - JWT_SECRET=${JWT_SECRET:-please-change-me-in-production}
     volumes:
       - backend_data:/app/data
       - backend_uploads:/app/uploads
