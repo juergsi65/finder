@@ -7,13 +7,17 @@ GPX-Track.
 
 ## Funktionsweise
 
-1. **Finder** setzt einen Pin auf der Karte an der Fundstelle, wählt eine
-   Kategorie, lädt optional ein Foto hoch und beschreibt den Fund.
-2. **Sucher** lädt die GPX-Datei der eigenen Route hoch und wählt die
-   verlorene Kategorie.
-3. Das Backend prüft für jeden Track-Punkt der Route, ob ein Fund-Pin
-   derselben Kategorie innerhalb von **30 Metern** liegt (Haversine-Distanz).
-   Bei einem Treffer erscheint eine Benachrichtigung samt Karte und Details.
+1. **Finder** setzt einen Pin auf der Karte an der Fundstelle (oder nutzt den
+   📍-Standort-Button), wählt eine Kategorie über die Icon-Auswahl, lädt
+   optional ein Foto hoch (Drag & Drop oder Kamera) und beschreibt den Fund.
+2. **Sucher** lädt die GPX-Datei der eigenen Route hoch (Drag & Drop) und
+   wählt die verlorene Kategorie.
+3. Das Backend prüft die **gesamte Route** - nicht nur die aufgezeichneten
+   GPS-Punkte, sondern auch die Strecke *zwischen* ihnen - per
+   Punkt-zu-Strecken-Distanz darauf, ob ein Fund-Pin derselben Kategorie
+   innerhalb von **30 Metern** liegt. Bei einem Treffer erscheint eine
+   Benachrichtigung mit Karte (Route + Fund-Pin + exaktem Trefferpunkt) und
+   Details.
 
 ## Tech-Stack
 
@@ -122,8 +126,15 @@ Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 
 ## Stand des Prototyps
 
-- Matching-Logik ist mit einer Test-GPX-Datei verifiziert (Haversine-Distanz,
-  30m-Radius, mehrere Kategorien).
+- Matching-Logik prüft die Distanz zum nächsten Punkt **auf der Strecke**
+  (Punkt-zu-Segment-Projektion), nicht nur zu den aufgezeichneten
+  GPS-Vertices - so werden auch Funde erkannt, die zwischen zwei
+  GPS-Fixes liegen. Verifiziert mit gezielten Test-GPX-Dateien (dichte
+  und sparsame Tracks, mehrere Kategorien, ISO-8859-1-kodierte Exporte).
+- GPX-Parsing ist robust gegen unterschiedliche Zeichenkodierungen
+  (UTF-8, UTF-8-BOM, ISO-8859-1/Windows-1252 wie bei älteren
+  Garmin-Exporten) sowie gegen leere Dateien, falsche Dateiendungen und
+  ungültige Radius-Werte (klare deutschsprachige Fehlermeldungen).
 - Fotos werden lokal unter `backend/uploads/` gespeichert und über
   `/uploads/...` ausgeliefert.
 - Kein Login/Auth - für den MVP bewusst weggelassen.

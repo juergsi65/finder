@@ -24,8 +24,16 @@ class MatchResult(BaseModel):
     matched_track_point: dict
 
 
+class TrackPoint(BaseModel):
+    lat: float
+    lng: float
+
+
 class MatchResponse(BaseModel):
     matched: bool
     track_points_checked: int
     radius_m: float
     matches: List[MatchResult]
+    # Downsampled polyline of the uploaded route, so the frontend can draw
+    # it on the result map alongside the matched pins.
+    track_preview: List[TrackPoint] = []

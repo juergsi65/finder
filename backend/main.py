@@ -11,7 +11,13 @@ from sqlalchemy.orm import Session
 from database import Base, engine, get_db
 from models import FoundItem
 from schemas import FoundItemOut, MatchResponse, CATEGORIES
-from gpx_matching import extract_track_points, find_matches, DEFAULT_RADIUS_M
+from gpx_matching import (
+    extract_track_points,
+    find_matches,
+    downsample_track,
+    DEFAULT_RADIUS_M,
+    MAX_RADIUS_M,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -106,14 +112,27 @@ async def match_gpx(
     """Core matching prototype endpoint.
 
     Parses the uploaded GPX track and checks every found-item pin of the
-    given category against every track point, using a haversine distance
-    calculation. Any pin within `radius_m` meters of the route is
-    returned as a match.
+    given category against the whole route - not just the recorded GPS
+    vertices, but the path *between* them too - using a perpendicular
+    point-to-segment distance. Any pin within `radius_m` meters of the
+    route is returned as a match.
     """
     if category not in CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
 
+    if radius_m <= 0 or radius_m > MAX_RADIUS_M:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Radius muss zwischen 1 und {int(MAX_RADIUS_M)} Metern liegen.",
+        )
+
+    if gpx_file.filename and not gpx_file.filename.lower().endswith(".gpx"):
+        raise HTTPException(status_code=400, detail="Bitte eine .gpx-Datei hochladen.")
+
     raw = await gpx_file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="Die hochgeladene Datei ist leer.")
+
     try:
         track_points = extract_track_points(raw)
     except Exception as exc:  # noqa: BLE001 - surface parse errors to the user
@@ -124,10 +143,12 @@ async def match_gpx(
 
     found_items = db.query(FoundItem).filter(FoundItem.category == category).all()
     matches = find_matches(track_points, found_items, radius_m=radius_m)
+    preview = downsample_track(track_points)
 
     return MatchResponse(
         matched=len(matches) > 0,
         track_points_checked=len(track_points),
         radius_m=radius_m,
         matches=matches,
+        track_preview=[{"lat": lat, "lng": lng} for lat, lng in preview],
     )
