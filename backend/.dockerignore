@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+trailfound.db
+data/
+uploads/*
+!uploads/.gitkeep
+.git
+.gitignore

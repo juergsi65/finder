@@ -12,7 +12,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE_URL = f"sqlite:///{os.path.join(BASE_DIR, 'trailfound.db')}"
+
+# DATA_DIR is overridable via env var so a Docker volume can be mounted at
+# a single path (e.g. /app/data) to persist the SQLite file across restarts.
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
+DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, 'trailfound.db')}"
 
 engine = create_engine(
     DATABASE_URL, connect_args={"check_same_thread": False}
