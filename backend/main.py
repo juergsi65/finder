@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from database import Base, engine, get_db, run_lightweight_migrations
-from models import FoundItem, User, Conversation, Message, STATUS_ACTIVE, STATUS_ARCHIVED
+from models import FoundItem, User, Conversation, Message, AppSettings, STATUS_ACTIVE, STATUS_ARCHIVED
 from schemas import (
     FoundItemOut,
     SearchResponse,
@@ -24,6 +24,8 @@ from schemas import (
     MessageCreate,
     MessageOut,
     ConversationOut,
+    AppSettingsOut,
+    AppSettingsUpdate,
 )
 from auth import (
     hash_password,
@@ -36,6 +38,7 @@ from geo import haversine_distance_m
 from gpx_matching import extract_track_points, GpxParseError, DEFAULT_RADIUS_M, MAX_RADIUS_M
 from search import build_search_response
 from email_utils import send_new_message_notification
+from settings_store import get_or_create_settings, get_strava_config, get_smtp_config
 import strava
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -391,7 +394,11 @@ def contact_finder(
     db.refresh(conv)
 
     send_new_message_notification(
-        item.reporter.email, item.title, payload.body, app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}"
+        get_smtp_config(db),
+        item.reporter.email,
+        item.title,
+        payload.body,
+        app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}",
     )
 
     return _conversation_to_out(conv, current_user.id)
@@ -446,6 +453,7 @@ def add_message(
     other = db.query(User).filter(User.id == other_id).first()
     if other:
         send_new_message_notification(
+            get_smtp_config(db),
             other.email,
             conv.found_item.title,
             payload.body,
@@ -498,3 +506,46 @@ def admin_stats(_admin: User = Depends(require_admin), db: Session = Depends(get
         "found_items_active": db.query(FoundItem).filter(FoundItem.status == STATUS_ACTIVE).count(),
         "found_items_archived": db.query(FoundItem).filter(FoundItem.status == STATUS_ARCHIVED).count(),
     }
+
+
+@app.get("/api/admin/settings", response_model=AppSettingsOut)
+def admin_get_settings(_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Current API configuration (Strava OAuth app, SMTP relay), so an
+    admin can manage it from the web UI instead of editing .env files on
+    the server. Secrets are never echoed back in plaintext - only whether
+    one is currently set."""
+    settings = get_or_create_settings(db)
+    strava_cfg = get_strava_config(db)
+    smtp_cfg = get_smtp_config(db)
+    return AppSettingsOut(
+        strava_client_id=strava_cfg.client_id,
+        strava_client_secret_set=bool(strava_cfg.client_secret),
+        strava_redirect_uri=strava_cfg.redirect_uri,
+        strava_configured=strava_cfg.is_configured,
+        smtp_host=smtp_cfg.host,
+        smtp_port=smtp_cfg.port,
+        smtp_user=smtp_cfg.user,
+        smtp_password_set=bool(smtp_cfg.password),
+        smtp_from=smtp_cfg.from_address,
+        smtp_configured=smtp_cfg.is_configured,
+        updated_at=settings.updated_at,
+    )
+
+
+@app.put("/api/admin/settings", response_model=AppSettingsOut)
+def admin_update_settings(
+    payload: AppSettingsUpdate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Only fields actually present in the request body are changed
+    (exclude_unset) - an admin editing just the SMTP section doesn't wipe
+    out a previously-saved Strava secret they didn't touch. Send an
+    explicit empty string for a field to clear it back to the environment
+    default."""
+    settings = get_or_create_settings(db)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(settings, field, value if value != "" else None)
+    db.commit()
+
+    return admin_get_settings(_admin, db)

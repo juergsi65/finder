@@ -117,7 +117,7 @@ export default function FinderMode() {
         <div className="text-4xl" aria-hidden>
           🔐
         </div>
-        <p className="text-gray-600 max-w-xs">{t("finder.heading")}</p>
+        <p className="text-slate-600 max-w-xs">{t("finder.heading")}</p>
         <Link
           to="/login"
           state={{ from: "/gefunden" }}
@@ -144,7 +144,7 @@ export default function FinderMode() {
         </MapPicker>
 
         {!pin && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur text-sm px-3 py-1.5 rounded-full shadow-lg z-[1000] pointer-events-none whitespace-nowrap">
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur text-sm px-3 py-1.5 rounded-full shadow-float z-[1000] pointer-events-none whitespace-nowrap">
             👆 {t("finder.tapHint")}
           </div>
         )}
@@ -153,7 +153,7 @@ export default function FinderMode() {
           type="button"
           onClick={handleLocate}
           disabled={locating}
-          className="absolute bottom-3 right-3 z-[1000] bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center text-lg border border-gray-200 active:scale-95 transition disabled:opacity-60"
+          className="absolute bottom-3 right-3 z-[1000] bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition disabled:opacity-60"
           aria-label={t("home.locateMe")}
         >
           {locating ? <Spinner className="w-5 h-5 text-trail-600" /> : "🎯"}
@@ -162,51 +162,51 @@ export default function FinderMode() {
 
       <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-5 bg-white rounded-t-2xl -mt-4 relative shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-800 text-lg">{t("finder.heading")}</h2>
+          <h2 className="font-semibold text-slate-800 text-lg">{t("finder.heading")}</h2>
           {pin ? (
             <span className="text-xs text-trail-700 bg-trail-50 border border-trail-100 rounded-full px-2.5 py-1 font-medium">
               📍 {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
             </span>
           ) : (
-            <span className="text-xs text-gray-400">{t("finder.noPin")}</span>
+            <span className="text-xs text-slate-400">{t("finder.noPin")}</span>
           )}
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">{t("finder.title")}</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t("finder.title")}</label>
           <input
             type="text"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t("finder.titlePlaceholder")}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+            className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
           />
         </div>
 
         <CategoryPicker categories={categories} value={category} onChange={setCategory} label={t("finder.category")} />
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">{t("finder.photoRequired")}</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t("finder.photoRequired")}</label>
           <PhotoDropzone file={photo} onFileSelected={setPhoto} />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">{t("finder.foundDate")}</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t("finder.foundDate")}</label>
           <input
             type="date"
             required
             value={foundDate}
             max={todayIso()}
             onChange={(e) => setFoundDate(e.target.value)}
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+            className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">{t("finder.descriptionOptional")}</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">{t("finder.descriptionOptional")}</label>
           <textarea
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+            className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             rows={3}
             placeholder={t("finder.descriptionPlaceholder")}
             value={description}
@@ -232,7 +232,7 @@ export default function FinderMode() {
         <button
           type="submit"
           disabled={submitting || !pin}
-          className="w-full bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
+          className="w-full bg-trail-600 disabled:bg-slate-300 hover:bg-trail-700 text-white font-semibold py-3.5 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
         >
           {submitting && <Spinner />}
           {submitting ? t("finder.submitting") : t("finder.submit")}

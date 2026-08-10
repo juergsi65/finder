@@ -16,7 +16,7 @@ export default function Navbar() {
   }
 
   return (
-    <header className="bg-trail-600 text-white px-3 py-2.5 flex items-center gap-1.5 shadow-sm shrink-0">
+    <header className="bg-gradient-to-r from-trail-700 to-trail-600 text-white px-3 py-2.5 flex items-center gap-1.5 shadow-md shrink-0 relative z-[1100]">
       {!isHome && (
         <Link to="/" className="text-white/90 hover:text-white text-xl leading-none px-1" aria-label={t("common.back")}>
           ←
@@ -32,7 +32,7 @@ export default function Navbar() {
           <>
             <Link
               to="/nachrichten"
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
               aria-label={t("nav.messages")}
               title={t("nav.messages")}
             >
@@ -41,7 +41,7 @@ export default function Navbar() {
             {user.role === "admin" && (
               <Link
                 to="/admin"
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
                 aria-label={t("nav.admin")}
                 title={t("nav.admin")}
               >
@@ -50,7 +50,7 @@ export default function Navbar() {
             )}
             <Link
               to="/profil"
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
               aria-label={`${t("nav.profile")} (${user.email})`}
               title={user.email}
             >
@@ -59,7 +59,7 @@ export default function Navbar() {
             <button
               type="button"
               onClick={handleLogout}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
               aria-label={t("nav.logout")}
               title={t("nav.logout")}
             >

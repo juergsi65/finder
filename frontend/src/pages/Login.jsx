@@ -35,33 +35,33 @@ export default function Login() {
           <div className="text-4xl mb-2" aria-hidden>
             🔐
           </div>
-          <h1 className="text-xl font-bold text-gray-800">{t("auth.loginHeading")}</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("auth.loginHeading")}</h1>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 bg-white p-5 rounded-2xl shadow border border-gray-100"
+          className="space-y-4 bg-white p-6 rounded-2xl shadow-card border border-slate-100"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.email")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.email")}</label>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.password")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.password")}</label>
             <input
               type="password"
               required
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
           </div>
 
@@ -74,14 +74,14 @@ export default function Login() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full bg-trail-600 disabled:bg-slate-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {submitting && <Spinner />}
             {submitting ? t("auth.loggingIn") : t("auth.submitLogin")}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-slate-500 mt-4">
           {t("auth.noAccount")}{" "}
           <Link to="/registrieren" className="text-trail-700 font-semibold">
             {t("auth.toRegister")}

@@ -47,7 +47,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
       className={`rounded-xl border-2 border-dashed p-4 text-center cursor-pointer transition ${
         dragOver
           ? "border-trail-500 bg-trail-50"
-          : "border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400"
+          : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400"
       }`}
     >
       <input
@@ -63,11 +63,11 @@ export default function PhotoDropzone({ file, onFileSelected }) {
           <img
             src={previewUrl}
             alt={t("common.preview")}
-            className="w-14 h-14 object-cover rounded-lg shrink-0 border border-gray-200"
+            className="w-14 h-14 object-cover rounded-lg shrink-0 border border-slate-200"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
-            <p className="text-xs text-gray-400">{t("finder.photoSelected")}</p>
+            <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+            <p className="text-xs text-slate-400">{t("finder.photoSelected")}</p>
           </div>
           <button
             type="button"
@@ -75,7 +75,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
               e.stopPropagation();
               onFileSelected(null);
             }}
-            className="text-gray-400 hover:text-red-500 text-lg shrink-0 px-2 py-1"
+            className="text-slate-400 hover:text-red-500 text-lg shrink-0 px-2 py-1"
             aria-label={t("common.removePhoto")}
           >
             ✕
@@ -86,7 +86,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
           <div className="text-2xl mb-1" aria-hidden>
             📷
           </div>
-          <p className="text-sm text-gray-600">{t("finder.photoHint")}</p>
+          <p className="text-sm text-slate-600">{t("finder.photoHint")}</p>
         </>
       )}
     </div>

@@ -4,6 +4,8 @@ import {
   apiAdminDeleteUser,
   apiAdminStats,
   apiAdminListFoundItems,
+  apiAdminGetSettings,
+  apiAdminUpdateSettings,
   deleteFoundItem,
   setFoundItemStatus,
 } from "../api.js";
@@ -15,6 +17,7 @@ import { categoryIcon } from "../categoryIcons.js";
 export default function Admin() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [mainTab, setMainTab] = useState("overview");
   const [users, setUsers] = useState([]);
   const [items, setItems] = useState([]);
   const [statusTab, setStatusTab] = useState("active");
@@ -90,126 +93,427 @@ export default function Admin() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-6 bg-white">
+    <div className="h-full overflow-y-auto p-4 space-y-5 bg-white">
       <div>
-        <h2 className="font-semibold text-gray-800 text-lg flex items-center gap-2">
+        <h2 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
           <span aria-hidden>👑</span> {t("admin.heading")}
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           {t("admin.loggedInAs")} {user?.email}
         </p>
       </div>
 
+      <div className="flex rounded-full border border-slate-200 overflow-hidden text-sm w-fit">
+        <button
+          type="button"
+          onClick={() => setMainTab("overview")}
+          className={`px-4 py-1.5 font-medium transition ${
+            mainTab === "overview" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {t("admin.tabOverview")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("apiConfig")}
+          className={`px-4 py-1.5 font-medium transition ${
+            mainTab === "apiConfig" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {t("admin.tabApiConfig")}
+        </button>
+      </div>
+
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
 
-      {stats && (
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-trail-700">{stats.users}</p>
-            <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.users")}</p>
-          </div>
-          <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-trail-700">{stats.found_items_active}</p>
-            <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.foundItemsActive")}</p>
-          </div>
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
-            <p className="text-xl font-bold text-gray-600">{stats.found_items_archived}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">{t("admin.foundItemsArchived")}</p>
-          </div>
-        </div>
-      )}
-
-      <div>
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">
-          {t("admin.users")} ({users.length})
-        </h3>
-        <ul className="space-y-2">
-          {users.map((u) => (
-            <li key={u.id} className="flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{u.display_name || u.email}</p>
-                <p className="text-xs text-gray-400">
-                  {u.role === "admin" ? "👑 " : u.role === "verein" ? "🏔️ " : ""}
-                  {t(`roles.${u.role}`)}
-                </p>
+      {mainTab === "overview" ? (
+        <div className="space-y-6">
+          {stats && (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-trail-700">{stats.users}</p>
+                <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.users")}</p>
               </div>
-              {u.id !== user?.id ? (
+              <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-trail-700">{stats.found_items_active}</p>
+                <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.foundItemsActive")}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-slate-600">{stats.found_items_archived}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.foundItemsArchived")}</p>
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-2">
+              {t("admin.users")} ({users.length})
+            </h3>
+            <ul className="space-y-2">
+              {users.map((u) => (
+                <li key={u.id} className="flex items-center justify-between gap-2 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md transition-shadow">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{u.display_name || u.email}</p>
+                    <p className="text-xs text-slate-400">
+                      {u.role === "admin" ? "👑 " : u.role === "verein" ? "🏔️ " : ""}
+                      {t(`roles.${u.role}`)}
+                    </p>
+                  </div>
+                  {u.id !== user?.id ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteUser(u.id)}
+                      className="shrink-0 text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+                    >
+                      {t("admin.delete")}
+                    </button>
+                  ) : (
+                    <span className="shrink-0 text-xs text-slate-300 px-2.5 py-1.5">{t("admin.you")}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-slate-700">{t("admin.foundItemsHeading")}</h3>
+              <div className="flex rounded-full border border-slate-200 overflow-hidden text-xs">
                 <button
                   type="button"
-                  onClick={() => handleDeleteUser(u.id)}
-                  className="shrink-0 text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+                  onClick={() => setStatusTab("active")}
+                  className={`px-3 py-1 font-medium transition ${
+                    statusTab === "active" ? "bg-trail-600 text-white" : "bg-white text-slate-600"
+                  }`}
                 >
-                  {t("admin.delete")}
+                  {t("admin.tabActive")}
                 </button>
-              ) : (
-                <span className="shrink-0 text-xs text-gray-300 px-2.5 py-1.5">{t("admin.you")}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
+                <button
+                  type="button"
+                  onClick={() => setStatusTab("archived")}
+                  className={`px-3 py-1 font-medium transition ${
+                    statusTab === "archived" ? "bg-trail-600 text-white" : "bg-white text-slate-600"
+                  }`}
+                >
+                  {t("admin.tabArchived")}
+                </button>
+              </div>
+            </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold text-gray-700">{t("admin.foundItemsHeading")}</h3>
-          <div className="flex rounded-full border border-gray-200 overflow-hidden text-xs">
-            <button
-              type="button"
-              onClick={() => setStatusTab("active")}
-              className={`px-3 py-1 font-medium transition ${
-                statusTab === "active" ? "bg-trail-600 text-white" : "bg-white text-gray-600"
-              }`}
-            >
-              {t("admin.tabActive")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusTab("archived")}
-              className={`px-3 py-1 font-medium transition ${
-                statusTab === "archived" ? "bg-trail-600 text-white" : "bg-white text-gray-600"
-              }`}
-            >
-              {t("admin.tabArchived")}
-            </button>
+            {items.length === 0 ? (
+              <p className="text-sm text-slate-400">-</p>
+            ) : (
+              <ul className="space-y-2">
+                {items.map((i) => (
+                  <li key={i.id} className="flex items-center justify-between gap-2 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-lg shrink-0" aria-hidden>
+                        {categoryIcon(i.category)}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{i.title}</p>
+                        <p className="text-xs text-slate-400 truncate">{i.description || "-"}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(i)}
+                        className="text-xs text-slate-600 font-semibold px-2.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 transition whitespace-nowrap"
+                      >
+                        {i.status === "active" ? t("admin.archive") : t("admin.restore")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteItem(i.id)}
+                        className="text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+                      >
+                        {t("admin.delete")}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
-
-        {items.length === 0 ? (
-          <p className="text-sm text-gray-400">-</p>
-        ) : (
-          <ul className="space-y-2">
-            {items.map((i) => (
-              <li key={i.id} className="flex items-center justify-between gap-2 border border-gray-200 rounded-xl p-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg shrink-0" aria-hidden>
-                    {categoryIcon(i.category)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{i.title}</p>
-                    <p className="text-xs text-gray-400 truncate">{i.description || "-"}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleStatus(i)}
-                    className="text-xs text-gray-600 font-semibold px-2.5 py-1.5 rounded-full border border-gray-200 hover:bg-gray-50 transition whitespace-nowrap"
-                  >
-                    {i.status === "active" ? t("admin.archive") : t("admin.restore")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteItem(i.id)}
-                    className="text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
-                  >
-                    {t("admin.delete")}
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      ) : (
+        <ApiConfigPanel />
+      )}
     </div>
+  );
+}
+
+function StatusBadge({ configured, t }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+        configured ? "bg-trail-50 text-trail-700 border border-trail-200" : "bg-slate-100 text-slate-500 border border-slate-200"
+      }`}
+    >
+      <span aria-hidden>{configured ? "●" : "○"}</span>
+      {configured ? t("admin.apiConfig.stravaConfigured") : t("admin.apiConfig.stravaNotConfigured")}
+    </span>
+  );
+}
+
+function ApiConfigPanel() {
+  const { t } = useTranslation();
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  const [form, setForm] = useState({
+    strava_client_id: "",
+    strava_client_secret: "",
+    strava_redirect_uri: "",
+    smtp_host: "",
+    smtp_port: "",
+    smtp_user: "",
+    smtp_password: "",
+    smtp_from: "",
+  });
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const s = await apiAdminGetSettings();
+      setSettings(s);
+      setForm((prev) => ({
+        ...prev,
+        strava_client_id: s.strava_client_id || "",
+        strava_redirect_uri: s.strava_redirect_uri || "",
+        smtp_host: s.smtp_host || "",
+        smtp_port: s.smtp_port != null ? String(s.smtp_port) : "",
+        smtp_user: s.smtp_user || "",
+        smtp_from: s.smtp_from || "",
+        strava_client_secret: "",
+        smtp_password: "",
+      }));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function updateField(field, value) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setSaved(false);
+  }
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    setSaved(false);
+    try {
+      const payload = {
+        strava_client_id: form.strava_client_id,
+        strava_redirect_uri: form.strava_redirect_uri,
+        smtp_host: form.smtp_host,
+        smtp_port: form.smtp_port === "" ? null : Number(form.smtp_port),
+        smtp_user: form.smtp_user,
+        smtp_from: form.smtp_from,
+      };
+      if (form.strava_client_secret) payload.strava_client_secret = form.strava_client_secret;
+      if (form.smtp_password) payload.smtp_password = form.smtp_password;
+
+      const updated = await apiAdminUpdateSettings(payload);
+      setSettings(updated);
+      setForm((prev) => ({ ...prev, strava_client_secret: "", smtp_password: "" }));
+      setSaved(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleClearSecret(field) {
+    setError("");
+    setSaving(true);
+    try {
+      const updated = await apiAdminUpdateSettings({ [field]: "" });
+      setSettings(updated);
+      setForm((prev) => ({ ...prev, [field]: "" }));
+      setSaved(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <Spinner className="w-6 h-6 text-trail-600" />
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-5">
+      <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+        {t("admin.apiConfig.intro")}
+      </p>
+
+      {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
+
+      {/* Strava section */}
+      <section className="border border-slate-200 rounded-xl p-4 shadow-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+            <span aria-hidden>🚴</span> {t("admin.apiConfig.stravaSection")}
+          </h3>
+          <StatusBadge configured={settings?.strava_configured} t={t} />
+        </div>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.clientId")}</span>
+          <input
+            type="text"
+            value={form.strava_client_id}
+            onChange={(e) => updateField("strava_client_id", e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.clientSecret")}</span>
+          <div className="mt-1 flex gap-2">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={form.strava_client_secret}
+              onChange={(e) => updateField("strava_client_secret", e.target.value)}
+              placeholder={settings?.strava_client_secret_set ? t("admin.apiConfig.clientSecretSet") : t("admin.apiConfig.clientSecretNotSet")}
+              className="flex-1 min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+            />
+            {settings?.strava_client_secret_set && (
+              <button
+                type="button"
+                onClick={() => handleClearSecret("strava_client_secret")}
+                className="shrink-0 text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+              >
+                {t("admin.apiConfig.clear")}
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-slate-400">{t("admin.apiConfig.secretHint")}</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.redirectUri")}</span>
+          <input
+            type="text"
+            value={form.strava_redirect_uri}
+            onChange={(e) => updateField("strava_redirect_uri", e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+        </label>
+      </section>
+
+      {/* SMTP section */}
+      <section className="border border-slate-200 rounded-xl p-4 shadow-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+            <span aria-hidden>✉️</span> {t("admin.apiConfig.smtpSection")}
+          </h3>
+          <StatusBadge configured={settings?.smtp_configured} t={t} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block col-span-1">
+            <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.smtpHost")}</span>
+            <input
+              type="text"
+              value={form.smtp_host}
+              onChange={(e) => updateField("smtp_host", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+            />
+          </label>
+          <label className="block col-span-1">
+            <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.smtpPort")}</span>
+            <input
+              type="number"
+              value={form.smtp_port}
+              onChange={(e) => updateField("smtp_port", e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.smtpUser")}</span>
+          <input
+            type="text"
+            value={form.smtp_user}
+            onChange={(e) => updateField("smtp_user", e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.smtpPassword")}</span>
+          <div className="mt-1 flex gap-2">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={form.smtp_password}
+              onChange={(e) => updateField("smtp_password", e.target.value)}
+              placeholder={settings?.smtp_password_set ? t("admin.apiConfig.smtpPasswordSet") : t("admin.apiConfig.smtpPasswordNotSet")}
+              className="flex-1 min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+            />
+            {settings?.smtp_password_set && (
+              <button
+                type="button"
+                onClick={() => handleClearSecret("smtp_password")}
+                className="shrink-0 text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+              >
+                {t("admin.apiConfig.clear")}
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-slate-400">{t("admin.apiConfig.secretHint")}</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.smtpFrom")}</span>
+          <input
+            type="text"
+            value={form.smtp_from}
+            onChange={(e) => updateField("smtp_from", e.target.value)}
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+        </label>
+      </section>
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-trail-600 hover:bg-trail-700 active:scale-95 disabled:opacity-60 text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-card transition"
+        >
+          {saving ? t("admin.apiConfig.saving") : t("admin.apiConfig.save")}
+        </button>
+        {saved && !saving && <span className="text-sm text-trail-700">{t("admin.apiConfig.saved")}</span>}
+      </div>
+
+      {settings?.updated_at && (
+        <p className="text-[11px] text-slate-400">
+          {t("admin.apiConfig.lastUpdated")}: {new Date(settings.updated_at).toLocaleString()}
+        </p>
+      )}
+    </form>
   );
 }

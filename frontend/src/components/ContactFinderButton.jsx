@@ -66,21 +66,21 @@ export default function ContactFinderButton({ itemId, className = "" }) {
 
   return (
     <form onSubmit={handleSend} className={`space-y-2 ${className}`}>
-      <p className="text-xs text-gray-500">{t("contact.intro")}</p>
+      <p className="text-xs text-slate-500">{t("contact.intro")}</p>
       <textarea
         autoFocus
         rows={2}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={t("contact.placeholder")}
-        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
       />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button
           type="submit"
           disabled={sending || !body.trim()}
-          className="flex-1 bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1.5"
+          className="flex-1 bg-trail-600 disabled:bg-slate-300 hover:bg-trail-700 text-white text-sm font-semibold py-2 rounded-lg transition flex items-center justify-center gap-1.5"
         >
           {sending && <Spinner className="w-3.5 h-3.5" />}
           {sending ? t("contact.sending") : t("contact.send")}
@@ -88,7 +88,7 @@ export default function ContactFinderButton({ itemId, className = "" }) {
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="text-sm text-gray-500 px-3 rounded-lg hover:bg-gray-50"
+          className="text-sm text-slate-500 px-3 rounded-lg hover:bg-slate-50"
         >
           {t("common.close")}
         </button>

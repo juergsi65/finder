@@ -13,7 +13,7 @@ export default function CategoryPicker({ categories, value, onChange, label, all
 
   return (
     <div>
-      {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
+      {label && <label className="block text-sm font-medium text-slate-700 mb-2">{label}</label>}
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={label}>
         {categories.map((c) => {
           const active = c === value;
@@ -28,7 +28,7 @@ export default function CategoryPicker({ categories, value, onChange, label, all
               className={`flex flex-col items-center justify-center gap-1 rounded-xl border py-3 px-1 text-[11px] font-medium leading-tight text-center transition ${
                 active
                   ? "border-trail-600 bg-trail-50 text-trail-700 ring-2 ring-trail-500"
-                  : "border-gray-200 bg-white text-gray-600 active:scale-95 hover:border-trail-300"
+                  : "border-slate-200 bg-white text-slate-600 active:scale-95 hover:border-trail-300"
               }`}
             >
               <span className="text-2xl" aria-hidden>

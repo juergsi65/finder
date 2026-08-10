@@ -1,10 +1,13 @@
 """Strava OAuth connect + 'did you lose something today?' add-on.
 
-Requires STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET to be configured (register
-a free API application at https://www.strava.com/settings/api and point its
-"Authorization Callback Domain" at this server). Without them, every route
-here returns a clear 501 so the rest of the app keeps working - that's
-inherent to any third-party OAuth integration, not something an operator can
+Requires a Strava OAuth app's Client ID/Secret to be configured - either
+via STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET env vars, or (since they can also
+be set live from Admin -> API-Konfiguration without a redeploy) via
+settings_store, which takes precedence. Register a free API application at
+https://www.strava.com/settings/api and point its "Authorization Callback
+Domain" at this server. Without credentials configured, every route here
+returns a clear 501 so the rest of the app keeps working - that's inherent
+to any third-party OAuth integration, not something an operator can
 shortcut around.
 """
 import datetime
@@ -21,36 +24,35 @@ from models import User
 from auth import get_current_user
 from gpx_matching import GpxPoint, DEFAULT_RADIUS_M
 from search import build_search_response
+from settings_store import get_strava_config
 
-STRAVA_CLIENT_ID = os.environ.get("STRAVA_CLIENT_ID")
-STRAVA_CLIENT_SECRET = os.environ.get("STRAVA_CLIENT_SECRET")
-STRAVA_REDIRECT_URI = os.environ.get("STRAVA_REDIRECT_URI", "http://localhost:8000/api/strava/callback")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-
-is_configured = bool(STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET)
 
 router = APIRouter(prefix="/api/strava", tags=["strava"])
 
 
-def _require_configured():
-    if not is_configured:
+def _require_configured(db: Session):
+    config = get_strava_config(db)
+    if not config.is_configured:
         raise HTTPException(
             status_code=501,
             detail=(
                 "Strava-Integration ist auf diesem Server nicht konfiguriert. "
-                "Ein Admin muss STRAVA_CLIENT_ID/STRAVA_CLIENT_SECRET setzen "
-                "(siehe README)."
+                "Ein Admin kann Client-ID/-Secret unter Admin -> "
+                "API-Konfiguration eintragen."
             ),
         )
+    return config
 
 
 @router.get("/status")
-def strava_status(current_user: User = Depends(get_current_user)):
-    return {"configured": is_configured, "connected": current_user.strava_connected}
+def strava_status(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    config = get_strava_config(db)
+    return {"configured": config.is_configured, "connected": current_user.strava_connected}
 
 
 @router.get("/connect")
-def strava_connect(current_user: User = Depends(get_current_user)):
+def strava_connect(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Returns the Strava authorize URL for the frontend to navigate to.
 
     This endpoint itself is JWT-authenticated (so we know who's connecting),
@@ -60,11 +62,11 @@ def strava_connect(current_user: User = Depends(get_current_user)):
     meaningful to us; the callback below trusts it to know which account to
     attach the connection to.
     """
-    _require_configured()
+    config = _require_configured(db)
     authorize_url = (
         "https://www.strava.com/oauth/authorize"
-        f"?client_id={STRAVA_CLIENT_ID}"
-        f"&redirect_uri={STRAVA_REDIRECT_URI}"
+        f"?client_id={config.client_id}"
+        f"&redirect_uri={config.redirect_uri}"
         "&response_type=code"
         "&scope=activity:read_all"
         f"&state={current_user.id}"
@@ -80,7 +82,8 @@ async def strava_callback(
     db: Session = Depends(get_db),
 ):
     """Strava redirects the user's browser here after they approve/deny."""
-    if not is_configured or error or not code or not state:
+    config = get_strava_config(db)
+    if not config.is_configured or error or not code or not state:
         return RedirectResponse(f"{FRONTEND_URL}/profil?strava=error")
 
     try:
@@ -96,8 +99,8 @@ async def strava_callback(
         resp = await client.post(
             "https://www.strava.com/oauth/token",
             data={
-                "client_id": STRAVA_CLIENT_ID,
-                "client_secret": STRAVA_CLIENT_SECRET,
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
                 "code": code,
                 "grant_type": "authorization_code",
             },
@@ -130,7 +133,7 @@ def strava_disconnect(current_user: User = Depends(get_current_user), db: Sessio
     return {"ok": True}
 
 
-async def _ensure_fresh_token(user: User, db: Session) -> str:
+async def _ensure_fresh_token(user: User, config, db: Session) -> str:
     now = datetime.datetime.utcnow()
     if user.strava_token_expires_at and user.strava_token_expires_at > now + datetime.timedelta(minutes=2):
         return user.strava_access_token
@@ -139,8 +142,8 @@ async def _ensure_fresh_token(user: User, db: Session) -> str:
         resp = await client.post(
             "https://www.strava.com/oauth/token",
             data={
-                "client_id": STRAVA_CLIENT_ID,
-                "client_secret": STRAVA_CLIENT_SECRET,
+                "client_id": config.client_id,
+                "client_secret": config.client_secret,
                 "grant_type": "refresh_token",
                 "refresh_token": user.strava_refresh_token,
             },
@@ -173,11 +176,11 @@ async def strava_today_track(
     latest Strava activity started today and runs it through the same
     matching logic as a GPX upload, returning the same SearchResponse
     shape."""
-    _require_configured()
+    config = _require_configured(db)
     if not current_user.strava_connected:
         raise HTTPException(status_code=400, detail="Bitte verbinde zuerst dein Strava-Konto im Profil.")
 
-    access_token = await _ensure_fresh_token(current_user, db)
+    access_token = await _ensure_fresh_token(current_user, config, db)
     headers = {"Authorization": f"Bearer {access_token}"}
 
     start_of_today = datetime.datetime.combine(datetime.date.today(), datetime.time.min)

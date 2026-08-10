@@ -45,15 +45,15 @@ export default function Register() {
           <div className="text-4xl mb-2" aria-hidden>
             📝
           </div>
-          <h1 className="text-xl font-bold text-gray-800">{t("auth.registerHeading")}</h1>
+          <h1 className="text-xl font-bold text-slate-800">{t("auth.registerHeading")}</h1>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 bg-white p-5 rounded-2xl shadow border border-gray-100"
+          className="space-y-4 bg-white p-6 rounded-2xl shadow-card border border-slate-100"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("auth.accountType")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">{t("auth.accountType")}</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
@@ -61,7 +61,7 @@ export default function Register() {
                 className={`rounded-xl border py-2.5 px-2 text-sm font-medium transition ${
                   role === "user"
                     ? "border-trail-600 bg-trail-50 text-trail-700 ring-2 ring-trail-500"
-                    : "border-gray-200 text-gray-600 hover:border-trail-300"
+                    : "border-slate-200 text-slate-600 hover:border-trail-300"
                 }`}
               >
                 🧑 {t("auth.accountTypeUser")}
@@ -72,7 +72,7 @@ export default function Register() {
                 className={`rounded-xl border py-2.5 px-2 text-sm font-medium transition ${
                   role === "verein"
                     ? "border-trail-600 bg-trail-50 text-trail-700 ring-2 ring-trail-500"
-                    : "border-gray-200 text-gray-600 hover:border-trail-300"
+                    : "border-slate-200 text-slate-600 hover:border-trail-300"
                 }`}
               >
                 🏔️ {t("auth.accountTypeVerein")}
@@ -82,31 +82,31 @@ export default function Register() {
 
           {role === "verein" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.clubName")}</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.clubName")}</label>
               <input
                 type="text"
                 required
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder={t("auth.clubNamePlaceholder")}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+                className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.email")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.email")}</label>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.password")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.password")}</label>
             <input
               type="password"
               required
@@ -114,19 +114,19 @@ export default function Register() {
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-400 mt-1">{t("auth.passwordHint")}</p>
+            <p className="text-xs text-slate-400 mt-1">{t("auth.passwordHint")}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.confirmPassword")}</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t("auth.confirmPassword")}</label>
             <input
               type="password"
               required
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              className="w-full border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
           </div>
 
@@ -139,14 +139,14 @@ export default function Register() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
+            className="w-full bg-trail-600 disabled:bg-slate-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {submitting && <Spinner />}
             {submitting ? t("auth.registering") : t("auth.submitRegister")}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm text-slate-500 mt-4">
           {t("auth.hasAccount")}{" "}
           <Link to="/login" className="text-trail-700 font-semibold">
             {t("auth.toLogin")}

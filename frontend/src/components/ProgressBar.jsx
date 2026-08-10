@@ -9,12 +9,12 @@ export default function ProgressBar({ percent = 0, label }) {
   return (
     <div className="w-full" role="progressbar" aria-valuenow={clamped} aria-valuemin={0} aria-valuemax={100}>
       {label && (
-        <div className="flex justify-between text-xs text-gray-500 mb-1">
+        <div className="flex justify-between text-xs text-slate-500 mb-1">
           <span>{label}</span>
           <span>{clamped}%</span>
         </div>
       )}
-      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
         <div
           className="h-full bg-trail-600 rounded-full transition-[width] duration-150 ease-out"
           style={{ width: `${clamped}%` }}

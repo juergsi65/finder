@@ -103,18 +103,18 @@ export default function Home() {
 
       {/* Nearby-count banner + category filter, floating over the map */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-col gap-2">
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-3">
+        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3">
           {locating ? (
-            <p className="text-sm text-gray-500 flex items-center gap-2">
+            <p className="text-sm text-slate-500 flex items-center gap-2">
               <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
             </p>
           ) : userPos ? (
-            <p className="text-sm text-gray-800">
+            <p className="text-sm text-slate-800">
               <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
-              {t("home.nearbyCount")} <span className="text-gray-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
+              {t("home.nearbyCount")} <span className="text-slate-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
             </p>
           ) : (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-slate-600">
               {t("home.noLocation")}{" "}
               <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
               {t("home.reportedPins")}
@@ -146,7 +146,7 @@ export default function Home() {
       <button
         type="button"
         onClick={handleLocate}
-        className="absolute bottom-24 right-3 z-[1000] bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center text-lg border border-gray-200 active:scale-95 transition"
+        className="absolute bottom-24 right-3 z-[1000] bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
         aria-label={t("home.locateMe")}
       >
         🎯
@@ -154,14 +154,14 @@ export default function Home() {
 
       <Link
         to="/suche"
-        className="absolute bottom-24 left-3 z-[1000] bg-white hover:bg-gray-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-lg px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+        className="absolute bottom-24 left-3 z-[1000] bg-white hover:bg-slate-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
       >
         <span aria-hidden>🔍</span> {t("nav.search")}
       </Link>
 
       <Link
         to="/gefunden"
-        className="absolute bottom-5 right-3 z-[1000] bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-lg px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+        className="absolute bottom-5 right-3 z-[1000] bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
       >
         <span aria-hidden>📍</span> {t("home.reportButton")}
       </Link>
@@ -175,7 +175,7 @@ function FilterChip({ active, onClick, icon, label }) {
       type="button"
       onClick={onClick}
       className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border shadow-sm transition ${
-        active ? "bg-trail-600 border-trail-600 text-white" : "bg-white/95 border-gray-200 text-gray-700 hover:border-trail-300"
+        active ? "bg-trail-600 border-trail-600 text-white" : "bg-white/95 border-slate-200 text-slate-700 hover:border-trail-300"
       }`}
     >
       <span aria-hidden>{icon}</span>

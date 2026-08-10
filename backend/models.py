@@ -100,3 +100,40 @@ class Message(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
+
+
+class AppSettings(Base):
+    """Admin-editable runtime configuration (Strava OAuth app credentials,
+    SMTP relay settings), stored in the database so an admin can set them
+    from the web UI instead of editing .env files on the server.
+
+    Always exactly one row (id=1) - a simple singleton settings table
+    rather than a generic key/value store, since the set of settings is
+    small and fixed. Any field left NULL here falls back to the matching
+    environment variable (see settings_store.py) - operators can still
+    bootstrap via .env/docker-compose and the DB only needs to hold
+    overrides that were actually changed through the UI.
+
+    Security note: secrets (strava_client_secret, smtp_password) are
+    stored in plaintext in this table, protected only by the SQLite file's
+    filesystem permissions and the admin-only API around it - there's no
+    separate encryption-at-rest here. That's an accepted trade-off for a
+    small self-hosted prototype; a production deployment with stricter
+    requirements should pull these from a real secrets manager instead.
+    """
+
+    __tablename__ = "app_settings"
+
+    id = Column(Integer, primary_key=True, default=1)
+
+    strava_client_id = Column(String, nullable=True)
+    strava_client_secret = Column(String, nullable=True)
+    strava_redirect_uri = Column(String, nullable=True)
+
+    smtp_host = Column(String, nullable=True)
+    smtp_port = Column(Integer, nullable=True)
+    smtp_user = Column(String, nullable=True)
+    smtp_password = Column(String, nullable=True)
+    smtp_from = Column(String, nullable=True)
+
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)

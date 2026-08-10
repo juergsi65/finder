@@ -54,7 +54,7 @@ export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
                 {categoryIcon(item.category)} {item.title}
               </strong>
               {item.description && <div>{item.description}</div>}
-              <div className="text-gray-500 text-xs">
+              <div className="text-slate-500 text-xs">
                 {t("home.foundOn")} {item.found_date}
                 {typeof item.distance_m === "number" && ` - ${formatDistance(item.distance_m)} ${t("home.away")}`}
               </div>

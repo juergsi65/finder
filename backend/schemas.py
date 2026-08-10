@@ -133,6 +133,46 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
+# --- Admin: API configuration -------------------------------------------
+
+
+class AppSettingsOut(BaseModel):
+    """Non-secret values are echoed back as-is so the form can be
+    pre-filled; secrets (client secret, SMTP password) are never sent back
+    in plaintext - only whether one is currently set - so the settings
+    screen can't leak them to anyone with a browser devtools tab open."""
+
+    strava_client_id: Optional[str] = None
+    strava_client_secret_set: bool = False
+    strava_redirect_uri: Optional[str] = None
+    strava_configured: bool = False
+
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password_set: bool = False
+    smtp_from: Optional[str] = None
+    smtp_configured: bool = False
+
+    updated_at: Optional[datetime.datetime] = None
+
+
+class AppSettingsUpdate(BaseModel):
+    """All fields optional and only applied if provided (exclude_unset) -
+    submitting the form doesn't blank out fields the admin didn't touch.
+    Send an explicit empty string to clear a field."""
+
+    strava_client_id: Optional[str] = None
+    strava_client_secret: Optional[str] = None
+    strava_redirect_uri: Optional[str] = None
+
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from: Optional[str] = None
+
+
 class ProfileUpdate(BaseModel):
     display_name: Optional[str] = None
     komoot_id: Optional[str] = None

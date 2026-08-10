@@ -30,12 +30,12 @@ export default function Messages() {
 
   return (
     <div className="h-full overflow-y-auto p-4 space-y-4 bg-white">
-      <h2 className="font-semibold text-gray-800 text-lg">{t("messages.heading")}</h2>
+      <h2 className="font-semibold text-slate-800 text-lg">{t("messages.heading")}</h2>
 
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
 
       {conversations.length === 0 ? (
-        <p className="text-sm text-gray-400">{t("messages.empty")}</p>
+        <p className="text-sm text-slate-400">{t("messages.empty")}</p>
       ) : (
         <ul className="space-y-2">
           {conversations.map((c) => {
@@ -44,14 +44,14 @@ export default function Messages() {
               <li key={c.id}>
                 <Link
                   to={`/nachrichten/${c.id}`}
-                  className="flex items-center gap-3 border border-gray-200 rounded-xl p-3 hover:border-trail-300 transition"
+                  className="flex items-center gap-3 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md hover:border-trail-300 transition"
                 >
                   <span className="text-xl shrink-0" aria-hidden>
                     {categoryIcon(c.found_item.category)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-800 truncate">{c.found_item.title}</p>
-                    {last && <p className="text-xs text-gray-500 truncate">{last.body}</p>}
+                    <p className="text-sm font-medium text-slate-800 truncate">{c.found_item.title}</p>
+                    {last && <p className="text-xs text-slate-500 truncate">{last.body}</p>}
                   </div>
                 </Link>
               </li>

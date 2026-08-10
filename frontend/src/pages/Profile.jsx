@@ -123,8 +123,8 @@ export default function Profile() {
   return (
     <div className="h-full overflow-y-auto p-4 space-y-6 bg-white">
       <div>
-        <h2 className="font-semibold text-gray-800 text-lg">{t("profile.heading")}</h2>
-        <p className="text-sm text-gray-500 mt-1">{user.email}</p>
+        <h2 className="font-semibold text-slate-800 text-lg">{t("profile.heading")}</h2>
+        <p className="text-sm text-slate-500 mt-1">{user.email}</p>
         <span className="inline-block mt-2 text-xs bg-trail-50 text-trail-700 border border-trail-100 rounded-full px-2.5 py-1 font-medium">
           {user.role === "admin" ? "👑 " : user.role === "verein" ? "🏔️ " : "🧑 "}
           {t(`roles.${user.role}`)}
@@ -132,19 +132,19 @@ export default function Profile() {
       </div>
 
       <form onSubmit={handleSaveDisplayName} className="space-y-2">
-        <label className="block text-sm font-medium text-gray-700">{t("profile.displayName")}</label>
+        <label className="block text-sm font-medium text-slate-700">{t("profile.displayName")}</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             placeholder={t("profile.displayNamePlaceholder")}
-            className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+            className="flex-1 border border-slate-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
           />
           <button
             type="submit"
             disabled={savingKey === "display_name"}
-            className="bg-trail-600 hover:bg-trail-700 disabled:bg-gray-300 text-white font-semibold px-4 rounded-xl transition"
+            className="bg-trail-600 hover:bg-trail-700 disabled:bg-slate-300 text-white font-semibold px-4 rounded-xl transition"
           >
             {savingKey === "display_name" ? <Spinner /> : t("profile.save")}
           </button>
@@ -152,19 +152,19 @@ export default function Profile() {
       </form>
 
       <div>
-        <h3 className="text-sm font-medium text-gray-700 mb-1">{t("profile.connections")}</h3>
-        <p className="text-xs text-gray-400 mb-3">{t("profile.connectionsHint")}</p>
+        <h3 className="text-sm font-medium text-slate-700 mb-1">{t("profile.connections")}</h3>
+        <p className="text-xs text-slate-400 mb-3">{t("profile.connectionsHint")}</p>
 
         <div className="space-y-2">
           {/* Strava - real OAuth */}
-          <div className="flex items-center justify-between border border-gray-200 rounded-xl p-3">
+          <div className="flex items-center justify-between border border-slate-200 bg-white rounded-xl p-3 shadow-card">
             <div className="flex items-center gap-3 min-w-0">
               <span className="text-xl shrink-0" aria-hidden>
                 🟠
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800">Strava</p>
-                <p className="text-xs text-gray-400 truncate">
+                <p className="text-sm font-medium text-slate-800">Strava</p>
+                <p className="text-xs text-slate-400 truncate">
                   {!strava.configured
                     ? t("profile.stravaUnavailable")
                     : strava.connected
@@ -178,7 +178,7 @@ export default function Profile() {
                 type="button"
                 onClick={handleDisconnectStrava}
                 disabled={stravaBusy}
-                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-600 transition disabled:opacity-50"
+                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-600 transition disabled:opacity-50"
               >
                 {stravaBusy ? "..." : t("profile.disconnect")}
               </button>
@@ -188,7 +188,7 @@ export default function Profile() {
                 onClick={handleConnectStrava}
                 disabled={stravaBusy || !strava.configured}
                 title={!strava.configured ? t("profile.stravaUnavailableTitle") : undefined}
-                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border border-trail-600 text-trail-700 hover:bg-trail-50 transition disabled:opacity-40 disabled:border-gray-200 disabled:text-gray-400"
+                className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border border-trail-600 text-trail-700 hover:bg-trail-50 transition disabled:opacity-40 disabled:border-slate-200 disabled:text-slate-400"
               >
                 {stravaBusy ? "..." : t("profile.connect")}
               </button>
@@ -199,14 +199,14 @@ export default function Profile() {
             const connected = Boolean(user[key]);
             const saving = savingKey === key;
             return (
-              <div key={key} className="flex items-center justify-between border border-gray-200 rounded-xl p-3">
+              <div key={key} className="flex items-center justify-between border border-slate-200 bg-white rounded-xl p-3 shadow-card">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className="text-xl shrink-0" aria-hidden>
                     {icon}
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800">{label}</p>
-                    <p className="text-xs text-gray-400 truncate">
+                    <p className="text-sm font-medium text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-400 truncate">
                       {connected ? `${t("profile.connected")} (${user[key]})` : t("profile.notConnected")}
                     </p>
                   </div>
@@ -217,7 +217,7 @@ export default function Profile() {
                   disabled={saving}
                   className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition disabled:opacity-50 ${
                     connected
-                      ? "border-gray-200 text-gray-500 hover:border-red-300 hover:text-red-600"
+                      ? "border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-600"
                       : "border-trail-600 text-trail-700 hover:bg-trail-50"
                   }`}
                 >
@@ -235,7 +235,7 @@ export default function Profile() {
       <button
         type="button"
         onClick={handleLogout}
-        className="w-full border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition"
+        className="w-full border border-slate-300 text-slate-700 font-semibold py-3 rounded-xl hover:bg-slate-50 transition"
       >
         {t("profile.logout")}
       </button>

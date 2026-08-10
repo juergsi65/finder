@@ -45,7 +45,7 @@ export default function GpxDropzone({ file, onFileSelected, onInvalidFile }) {
       className={`rounded-xl border-2 border-dashed p-5 text-center cursor-pointer transition ${
         dragOver
           ? "border-trail-500 bg-trail-50"
-          : "border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-gray-400"
+          : "border-slate-300 bg-slate-50 hover:bg-slate-100 hover:border-slate-400"
       }`}
     >
       <input
@@ -62,8 +62,8 @@ export default function GpxDropzone({ file, onFileSelected, onInvalidFile }) {
               🗺️
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
-              <p className="text-xs text-gray-400">{formatSize(file.size)}</p>
+              <p className="text-sm font-medium text-slate-800 truncate">{file.name}</p>
+              <p className="text-xs text-slate-400">{formatSize(file.size)}</p>
             </div>
           </div>
           <button
@@ -72,7 +72,7 @@ export default function GpxDropzone({ file, onFileSelected, onInvalidFile }) {
               e.stopPropagation();
               onFileSelected(null);
             }}
-            className="text-gray-400 hover:text-red-500 text-lg shrink-0 px-2 py-1"
+            className="text-slate-400 hover:text-red-500 text-lg shrink-0 px-2 py-1"
             aria-label={t("common.removeFile")}
           >
             ✕
@@ -83,10 +83,10 @@ export default function GpxDropzone({ file, onFileSelected, onInvalidFile }) {
           <div className="text-3xl mb-1" aria-hidden>
             📤
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-slate-600">
             <span className="text-trail-700 font-semibold">{t("search.gpxDropHint")}</span> {t("search.gpxDropHintOr")}
           </p>
-          <p className="text-xs text-gray-400 mt-1">Strava, Komoot, Garmin, ...</p>
+          <p className="text-xs text-slate-400 mt-1">Strava, Komoot, Garmin, ...</p>
         </>
       )}
     </div>

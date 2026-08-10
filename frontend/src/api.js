@@ -283,3 +283,19 @@ export async function apiAdminStats() {
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Statistiken konnten nicht geladen werden"));
   return res.json();
 }
+
+export async function apiAdminGetSettings() {
+  const res = await fetch("/api/admin/settings", { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Einstellungen konnten nicht geladen werden"));
+  return res.json();
+}
+
+export async function apiAdminUpdateSettings(fields) {
+  const res = await fetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Einstellungen konnten nicht gespeichert werden"));
+  return res.json();
+}
