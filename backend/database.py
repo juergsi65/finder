@@ -79,6 +79,9 @@ def _column_migrations():
         ("users", "strava_access_token", "VARCHAR"),
         ("users", "strava_refresh_token", "VARCHAR"),
         ("users", "strava_token_expires_at", "DATETIME"),
+        ("users", "alert_opt_in", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("users", "home_lat", "FLOAT"),
+        ("users", "home_lng", "FLOAT"),
     ]
 
 

@@ -3,12 +3,14 @@ import { Link } from "react-router-dom";
 import FoundItemsMap from "../components/FoundItemsMap.jsx";
 import TopLoadingBar from "../components/TopLoadingBar.jsx";
 import Spinner from "../components/Spinner.jsx";
+import OnboardingModal from "../components/OnboardingModal.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
 import { getCategories, getFoundItems } from "../api.js";
 import { categoryIcon } from "../categoryIcons.js";
 import { DEFAULT_CENTER, NEARBY_RADIUS_M } from "../constants.js";
 
 const ALL_CATEGORIES = "__all__";
+const ONBOARDING_SEEN_KEY = "trailfound_onboarding_seen";
 
 export default function Home() {
   const { t } = useTranslation();
@@ -20,12 +22,26 @@ export default function Home() {
   const [error, setError] = useState("");
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [flyToTarget, setFlyToTarget] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
     getCategories()
       .then(setCategories)
       .catch(() => setCategories(["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"]));
   }, []);
+
+  // Alpha-testers see the 3-step "how it works" guide once, automatically;
+  // anyone can reopen it anytime via the "?" button on the banner.
+  useEffect(() => {
+    if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  function dismissOnboarding() {
+    localStorage.setItem(ONBOARDING_SEEN_KEY, "1");
+    setShowOnboarding(false);
+  }
 
   useEffect(() => {
     loadEverything();
@@ -107,24 +123,35 @@ export default function Home() {
         <div className="relative w-full max-w-3xl h-full">
           {/* Nearby-count banner + category filter, floating over the map */}
           <div className="absolute top-3 left-3 right-3 flex flex-col gap-2 pointer-events-auto">
-            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3">
-              {locating ? (
-                <p className="text-sm text-slate-500 flex items-center gap-2">
-                  <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
-                </p>
-              ) : userPos ? (
-                <p className="text-sm text-slate-800">
-                  <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
-                  {t("home.nearbyCount")} <span className="text-slate-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
-                </p>
-              ) : (
-                <p className="text-sm text-slate-600">
-                  {t("home.noLocation")}{" "}
-                  <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
-                  {t("home.reportedPins")}
-                </p>
-              )}
-              {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3 flex items-start gap-2">
+              <div className="min-w-0 flex-1">
+                {locating ? (
+                  <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
+                  </p>
+                ) : userPos ? (
+                  <p className="text-sm text-slate-800">
+                    <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
+                    {t("home.nearbyCount")} <span className="text-slate-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {t("home.noLocation")}{" "}
+                    <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
+                    {t("home.reportedPins")}
+                  </p>
+                )}
+                {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOnboarding(true)}
+                className="shrink-0 w-7 h-7 rounded-full border border-slate-200 text-slate-400 hover:text-trail-700 hover:border-trail-300 flex items-center justify-center text-sm transition"
+                aria-label={t("home.onboarding.reopen")}
+                title={t("home.onboarding.reopen")}
+              >
+                ?
+              </button>
             </div>
 
             <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -164,6 +191,13 @@ export default function Home() {
           </Link>
 
           <Link
+            to="/verlust"
+            className="absolute bottom-5 left-3 pointer-events-auto bg-white hover:bg-red-50 text-red-600 border border-red-300 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+          >
+            <span aria-hidden>🚨</span> {t("home.lostButton")}
+          </Link>
+
+          <Link
             to="/gefunden"
             className="absolute bottom-5 right-3 pointer-events-auto bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
           >
@@ -171,6 +205,8 @@ export default function Home() {
           </Link>
         </div>
       </div>
+
+      {showOnboarding && <OnboardingModal onClose={dismissOnboarding} />}
     </div>
   );
 }

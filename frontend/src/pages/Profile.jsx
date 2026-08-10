@@ -4,6 +4,8 @@ import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
 import { getStravaStatus, getStravaConnectUrl, disconnectStrava } from "../api.js";
 import Spinner from "../components/Spinner.jsx";
+import MapPicker from "../components/MapPicker.jsx";
+import LegalFooter from "../components/LegalFooter.jsx";
 
 // Manual placeholders for future external-service linking without OAuth yet.
 const MANUAL_CONNECTIONS = [
@@ -23,6 +25,14 @@ export default function Profile() {
   const [displayName, setDisplayName] = useState(user?.display_name || "");
   const [strava, setStrava] = useState({ configured: false, connected: user?.strava_connected || false });
   const [stravaBusy, setStravaBusy] = useState(false);
+
+  const [alertOptIn, setAlertOptIn] = useState(Boolean(user?.alert_opt_in));
+  const [homePin, setHomePin] = useState(
+    user?.home_lat != null && user?.home_lng != null ? { lat: user.home_lat, lng: user.home_lng } : null
+  );
+  const [showMap, setShowMap] = useState(false);
+  const [locationDirty, setLocationDirty] = useState(false);
+  const [alertsBusy, setAlertsBusy] = useState(false);
 
   useEffect(() => {
     getStravaStatus()
@@ -118,6 +128,44 @@ export default function Profile() {
   function handleLogout() {
     logout();
     navigate("/");
+  }
+
+  async function handleToggleAlertOptIn() {
+    const next = !alertOptIn;
+    setAlertOptIn(next);
+    setAlertsBusy(true);
+    setError("");
+    try {
+      await updateProfile({ alert_opt_in: next });
+      setNotice(t("profile.saved"));
+      setTimeout(() => setNotice(""), 2500);
+    } catch (err) {
+      setAlertOptIn(!next); // revert on failure
+      setError(err.message);
+    } finally {
+      setAlertsBusy(false);
+    }
+  }
+
+  function handlePickHomeLocation(latlng) {
+    setHomePin(latlng);
+    setLocationDirty(true);
+  }
+
+  async function handleSaveLocation() {
+    if (!homePin) return;
+    setAlertsBusy(true);
+    setError("");
+    try {
+      await updateProfile({ home_lat: homePin.lat, home_lng: homePin.lng });
+      setLocationDirty(false);
+      setNotice(t("profile.saved"));
+      setTimeout(() => setNotice(""), 2500);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAlertsBusy(false);
+    }
   }
 
   return (
@@ -230,6 +278,54 @@ export default function Profile() {
         </div>
       </div>
 
+      <div className="border border-slate-200 rounded-xl p-3 shadow-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-slate-700">{t("profile.alertsHeading")}</h3>
+          <span aria-hidden>🚨</span>
+        </div>
+        <p className="text-xs text-slate-400">{t("profile.alertsHint")}</p>
+
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={alertOptIn}
+            onChange={handleToggleAlertOptIn}
+            disabled={alertsBusy}
+            className="w-4 h-4 shrink-0 rounded border-slate-300 text-trail-600 focus:ring-trail-500"
+          />
+          <span className="text-sm text-slate-700">{t("profile.alertOptInLabel")}</span>
+        </label>
+
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs text-slate-500">
+            {homePin ? `📍 ${t("profile.homeLocationSet")}` : t("profile.homeLocationNotSet")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            className="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200 text-slate-600 hover:border-trail-300 hover:text-trail-700 transition"
+          >
+            {showMap ? t("profile.hideMap") : t("profile.pickOnMap")}
+          </button>
+        </div>
+
+        {showMap && (
+          <div className="space-y-2">
+            <div className="h-56 rounded-xl overflow-hidden border border-slate-200">
+              <MapPicker pin={homePin} onPick={handlePickHomeLocation} center={homePin ? [homePin.lat, homePin.lng] : undefined} />
+            </div>
+            <button
+              type="button"
+              onClick={handleSaveLocation}
+              disabled={!locationDirty || alertsBusy}
+              className="w-full bg-trail-600 hover:bg-trail-700 disabled:bg-slate-300 text-white font-semibold py-2.5 rounded-xl transition flex items-center justify-center gap-2"
+            >
+              {alertsBusy ? <Spinner /> : t("profile.saveLocation")}
+            </button>
+          </div>
+        )}
+      </div>
+
       {notice && <p className="text-sm text-trail-700 bg-trail-50 border border-trail-100 rounded-lg px-3 py-2">{notice}</p>}
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
 
@@ -240,6 +336,8 @@ export default function Profile() {
       >
         {t("profile.logout")}
       </button>
+
+      <LegalFooter />
     </div>
     </div>
   );

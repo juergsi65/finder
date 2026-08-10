@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
 import Spinner from "../components/Spinner.jsx";
+import LegalFooter from "../components/LegalFooter.jsx";
 
 export default function Login() {
   const { login } = useAuth();
@@ -87,6 +88,8 @@ export default function Login() {
             {t("auth.toRegister")}
           </Link>
         </p>
+
+        <LegalFooter className="mt-4" />
       </div>
     </div>
   );

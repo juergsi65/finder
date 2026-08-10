@@ -114,6 +114,46 @@ export function createFoundItem({ title, category, description, lat, lng, foundD
   return xhrMultipart("POST", "/api/found-items", form, onProgress);
 }
 
+// --- Lost / stolen reports + radius alerts --------------------------------
+
+/**
+ * Files a "lost" or "stolen" report for the reporter's own gear (as
+ * opposed to createFoundItem, filed by whoever *found* something). Photo
+ * is optional here. Triggers a background radius-alert email to nearby
+ * opted-in users server-side.
+ */
+export function createLostItemReport({
+  reportType,
+  title,
+  category,
+  description,
+  serialNumber,
+  lat,
+  lng,
+  occurredDate,
+  photo,
+  onProgress,
+}) {
+  const form = new FormData();
+  form.append("report_type", reportType);
+  form.append("title", title);
+  form.append("category", category);
+  if (description) form.append("description", description);
+  if (serialNumber) form.append("serial_number", serialNumber);
+  form.append("lat", lat);
+  form.append("lng", lng);
+  if (occurredDate) form.append("occurred_date", occurredDate);
+  if (photo) form.append("photo", photo);
+
+  return xhrMultipart("POST", "/api/lost-items", form, onProgress);
+}
+
+export async function getMyLostItems() {
+  const res = await fetch("/api/lost-items/mine", { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Meldungen konnten nicht geladen werden"));
+  return res.json();
+}
+
 export async function setFoundItemStatus(id, status) {
   const form = new FormData();
   form.append("status", status);
@@ -210,11 +250,17 @@ export async function sendMessage(conversationId, body) {
 
 // --- Auth --------------------------------------------------------------
 
-export async function apiRegister({ email, password, role, displayName }) {
+export async function apiRegister({ email, password, role, displayName, alertOptIn }) {
   const res = await fetch("/api/auth/register", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, role, display_name: displayName || null }),
+    body: JSON.stringify({
+      email,
+      password,
+      role,
+      display_name: displayName || null,
+      alert_opt_in: Boolean(alertOptIn),
+    }),
   });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res, "Registrierung fehlgeschlagen"));

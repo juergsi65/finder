@@ -37,11 +37,17 @@ export function LanguageProvider({ children }) {
   const t = useMemo(() => {
     const dict = DICTS[lang];
     const fallback = DICTS.de;
-    return (key) => {
+    // Optional second arg: a {{placeholder}} substitution map, e.g.
+    // t("lost.alertHint", { radius: 15 }) for a string containing
+    // "...{{radius}} km...". Plain t(key) calls are unaffected.
+    return (key, params) => {
       const value = resolve(dict, key);
-      if (value != null) return value;
-      const fallbackValue = resolve(fallback, key);
-      return fallbackValue != null ? fallbackValue : key;
+      const resolved = value != null ? value : resolve(fallback, key);
+      if (resolved == null) return key;
+      if (typeof resolved === "string" && params) {
+        return resolved.replace(/\{\{(\w+)\}\}/g, (match, name) => (name in params ? String(params[name]) : match));
+      }
+      return resolved;
     };
   }, [lang]);
 

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import FinderMode from "./pages/FinderMode.jsx";
+import LostStolenMode from "./pages/LostStolenMode.jsx";
 import Search from "./pages/Search.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
@@ -8,6 +9,7 @@ import Profile from "./pages/Profile.jsx";
 import Admin from "./pages/Admin.jsx";
 import Messages from "./pages/Messages.jsx";
 import Conversation from "./pages/Conversation.jsx";
+import { Imprint, Privacy } from "./pages/Legal.jsx";
 import Navbar from "./components/Navbar.jsx";
 import Spinner from "./components/Spinner.jsx";
 import { useAuth } from "./AuthContext.jsx";
@@ -44,9 +46,12 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/gefunden" element={<FinderMode />} />
+          <Route path="/verlust" element={<LostStolenMode />} />
           <Route path="/suche" element={<Search />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registrieren" element={<Register />} />
+          <Route path="/impressum" element={<Imprint />} />
+          <Route path="/datenschutz" element={<Privacy />} />
           <Route
             path="/profil"
             element={

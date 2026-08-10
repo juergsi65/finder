@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey, Text
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -13,6 +13,10 @@ ROLES = ["user", "verein", "admin"]
 
 STATUS_ACTIVE = "active"
 STATUS_ARCHIVED = "archived"
+
+REPORT_TYPE_LOST = "lost"
+REPORT_TYPE_STOLEN = "stolen"
+REPORT_TYPES = [REPORT_TYPE_LOST, REPORT_TYPE_STOLEN]
 
 
 class User(Base):
@@ -40,6 +44,15 @@ class User(Base):
     strava_access_token = Column(String, nullable=True)
     strava_refresh_token = Column(String, nullable=True)
     strava_token_expires_at = Column(DateTime, nullable=True)
+
+    # Opt-in (GDPR-relevant, so explicit and off by default) radius alerts:
+    # when someone else files a lost/stolen report near this user's home
+    # location, they get emailed - see main.py's `_notify_nearby_users`.
+    # home_lat/home_lng are only ever set if the user chose to share them
+    # (via the map picker in Profil), never inferred.
+    alert_opt_in = Column(Boolean, nullable=False, default=False)
+    home_lat = Column(Float, nullable=True)
+    home_lng = Column(Float, nullable=True)
 
     found_items = relationship("FoundItem", back_populates="reporter")
 
@@ -69,6 +82,34 @@ class FoundItem(Base):
 
     reporter = relationship("User", back_populates="found_items")
     conversations = relationship("Conversation", back_populates="found_item")
+
+
+class LostItemReport(Base):
+    """The mirror image of FoundItem: filed by the item's *owner* to report
+    their own gear as lost or stolen (not by someone who found it). Filing
+    one triggers a background radius alert - every user who opted in and
+    saved a home location within ALERT_RADIUS_M of `lat`/`lng` gets emailed
+    the details (see main.py's `_notify_nearby_users`)."""
+
+    __tablename__ = "lost_item_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    report_type = Column(String, nullable=False)  # "lost" | "stolen" - see REPORT_TYPES
+    title = Column(String, nullable=False)
+    category = Column(String, nullable=False, index=True)
+    description = Column(String, nullable=True)
+    # Serial/frame number - especially valuable for stolen bikes/equipment
+    # so a finder (or the police) can positively identify the item later.
+    # Always optional: not everyone has it on hand when filing the report.
+    serial_number = Column(String, nullable=True)
+    photo_path = Column(String, nullable=True)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    occurred_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    reporter = relationship("User", foreign_keys=[reporter_id])
 
 
 class Conversation(Base):

@@ -32,6 +32,14 @@ export default function Navbar() {
           {loading ? null : user ? (
             <>
               <Link
+                to="/verlust"
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
+                aria-label={t("nav.lost")}
+                title={t("nav.lost")}
+              >
+                🚨
+              </Link>
+              <Link
                 to="/nachrichten"
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
                 aria-label={t("nav.messages")}

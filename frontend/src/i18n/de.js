@@ -8,6 +8,7 @@ export default {
     logout: "Abmelden",
     messages: "Nachrichten",
     search: "Suchen",
+    lost: "Verlust/Diebstahl melden",
   },
   home: {
     nearbyCount: "Gegenstände in deiner Nähe",
@@ -16,10 +17,26 @@ export default {
     reportedPins: "gemeldete Fund-Pins.",
     all: "Alle",
     reportButton: "Fund melden",
+    lostButton: "Verlust/Diebstahl",
     locateMe: "Meinen Standort verwenden",
     contactFinder: "Finder kontaktieren",
     away: "entfernt",
     foundOn: "Gefunden am",
+    onboarding: {
+      title: "Willkommen bei TrailFound 👋",
+      intro: "So funktioniert's in 3 Schritten:",
+      step1Title: "1. Fund oder Verlust melden",
+      step1Body:
+        "Fund gemacht? Melde ihn mit Foto und Standort. Etwas verloren oder gestohlen? Melde es, damit andere in der Umgebung die Augen offen halten können.",
+      step2Title: "2. Suchen",
+      step2Body:
+        "Durchsuche die Karte oder lade den GPX-Track deiner Tour hoch - wir gleichen jeden Meter mit gemeldeten Funden ab.",
+      step3Title: "3. Strava verbinden",
+      step3Body:
+        "Verbinde dein Strava-Konto im Profil, um deine heutige Aktivität automatisch mit gemeldeten Funden abzugleichen.",
+      dismiss: "Los geht's!",
+      reopen: "Wie funktioniert's?",
+    },
   },
   finder: {
     heading: "Fund melden",
@@ -48,6 +65,25 @@ export default {
       noTitle: "Bitte gib einen Titel ein.",
       geoUnsupported: "Standortbestimmung wird von diesem Browser nicht unterstützt.",
       geoFailed: "Standort konnte nicht ermittelt werden. Bitte manuell auf der Karte tippen.",
+    },
+  },
+  lost: {
+    heading: "Verlust oder Diebstahl melden",
+    tapHint: "Tippe auf die Karte: Wo ist es passiert?",
+    reportType: "Meldungsart",
+    typeLost: "Verloren",
+    typeStolen: "Gestohlen",
+    serialNumber: "Seriennummer / Rahmennummer",
+    serialNumberPlaceholder: "z.B. WBA12345678901234",
+    serialNumberHint: "Optional, aber sehr hilfreich zur eindeutigen Identifizierung (z.B. bei der Polizei).",
+    photoOptional: "Foto (optional)",
+    occurredDate: "Datum",
+    alertHint: "Nutzer:innen mit aktiviertem Umkreis-Alarm im Umkreis von {{radius}} km werden automatisch per E-Mail benachrichtigt.",
+    submit: "Meldung absenden",
+    success: "Meldung gespeichert - Nutzer in der Umgebung werden benachrichtigt.",
+    myReports: "Meine Meldungen",
+    errors: {
+      noPin: "Bitte markiere zuerst den Ort auf der Karte.",
     },
   },
   search: {
@@ -113,6 +149,15 @@ export default {
     stravaUnavailable: "Nicht verfügbar (Server nicht konfiguriert)",
     stravaUnavailableTitle: "STRAVA_CLIENT_ID/SECRET nicht gesetzt",
     stravaConnectError: "Strava-Verbindung fehlgeschlagen. Bitte erneut versuchen.",
+    alertsHeading: "Standort & Umkreis-Alarm",
+    alertsHint:
+      "Lege deinen ungefähren Wohnort fest, um bei Diebstahl-/Verlustmeldungen in deiner Nähe automatisch per E-Mail benachrichtigt zu werden. Freiwillig, jederzeit änderbar.",
+    alertOptInLabel: "Umkreis-Alarm aktivieren",
+    homeLocationSet: "Wohnort gesetzt",
+    homeLocationNotSet: "Kein Wohnort hinterlegt",
+    pickOnMap: "Auf Karte auswählen",
+    hideMap: "Karte ausblenden",
+    saveLocation: "Standort speichern",
   },
   admin: {
     heading: "Admin",
@@ -192,6 +237,8 @@ export default {
     hasAccount: "Schon ein Konto?",
     toRegister: "Registrieren",
     toLogin: "Anmelden",
+    alertOptIn: "Möchtest du bei Diebstählen oder Verlusten in deiner Region benachrichtigt werden?",
+    alertOptInHint: "Freiwillig, jederzeit im Profil änderbar. Für Benachrichtigungen hinterlegst du dort optional deinen ungefähren Wohnort.",
   },
   categories: {
     Trinkflasche: "Trinkflasche",
@@ -209,5 +256,41 @@ export default {
     removeFile: "Datei entfernen",
     removePhoto: "Foto entfernen",
     preview: "Vorschau",
+  },
+  legal: {
+    imprintLink: "Impressum",
+    privacyLink: "Datenschutz",
+    imprintTitle: "Impressum",
+    imprintBody:
+      "Angaben gemäß § 5 TMG (Platzhalter für die Alpha-Testphase):\n\nTrailFound (Prototyp)\nBetreiber: [Name/Firma einfügen]\nAnschrift: [Adresse einfügen]\nE-Mail: [Kontakt-E-Mail einfügen]\n\nDiese App befindet sich in einer nicht-kommerziellen Alpha-Testphase. Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV: [Name einfügen].",
+    privacyTitle: "Datenschutzerklärung",
+    privacyIntro:
+      "Diese Übersicht beschreibt, welche Daten TrailFound verarbeitet und warum - insbesondere zu Standortdaten, die für diese App zentral sind.",
+    privacySections: [
+      {
+        title: "1. Verantwortliche Stelle",
+        body: "Verantwortlich für die Datenverarbeitung ist der Betreiber dieser Alpha-Version (siehe Impressum).",
+      },
+      {
+        title: "2. Konto- & Nutzungsdaten",
+        body: "Bei der Registrierung speichern wir deine E-Mail-Adresse (verschlüsselt gehasht: dein Passwort) sowie optional einen Anzeigenamen. Diese Daten werden ausschließlich zur Bereitstellung des Dienstes genutzt.",
+      },
+      {
+        title: "3. Standortdaten von Fund-/Verlustmeldungen",
+        body: "Wenn du einen Fund, Verlust oder Diebstahl meldest, speichern wir den von dir angegebenen Ort (Kartenkoordinaten) sowie optionale Angaben wie Foto und Seriennummer. Diese Angaben sind für die Kernfunktion der App (Zuordnung von Funden zu Meldungen) erforderlich und werden anderen Nutzer:innen nur in dem Umfang angezeigt, der zur Nutzung der App nötig ist - deine E-Mail-Adresse wird dabei nie offengelegt.",
+      },
+      {
+        title: "4. Wohnort-Opt-In für Umkreis-Alarme",
+        body: "Der Umkreis-Alarm ist ein freiwilliges Opt-in-Feature: Nur wenn du es in deinem Profil aktivierst und einen ungefähren Wohnort hinterlegst, verwenden wir diesen, um dich per E-Mail zu benachrichtigen, wenn in deiner Nähe ein Diebstahl oder Verlust gemeldet wird. Ohne aktives Opt-in wird dein Wohnort weder gespeichert noch für Benachrichtigungen verwendet. Du kannst das Opt-in und den hinterlegten Standort jederzeit in deinem Profil widerrufen bzw. löschen.",
+      },
+      {
+        title: "5. E-Mail-Benachrichtigungen",
+        body: "System-E-Mails (z.B. neue Nachrichten, Umkreis-Alarme) werden über den vom Betreiber konfigurierten E-Mail-Server versendet. Deine E-Mail-Adresse wird dabei niemals an andere Nutzer:innen weitergegeben.",
+      },
+      {
+        title: "6. Deine Rechte",
+        body: "Du hast jederzeit das Recht auf Auskunft, Berichtigung und Löschung deiner Daten. Du kannst dein Konto sowie alle zugehörigen Daten jederzeit über den Support löschen lassen.",
+      },
+    ],
   },
 };

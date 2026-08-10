@@ -68,3 +68,42 @@ def send_new_message_notification(
         "Antworte direkt in der App - deine E-Mail-Adresse wird dabei nicht an die andere Person weitergegeben."
     )
     return send_email(config, to_email, f'Neue Nachricht zu "{found_item_title}" - TrailFound', body)
+
+
+def send_radius_alert(
+    config: SmtpConfig,
+    to_email: str,
+    *,
+    report_type: str,
+    title: str,
+    category: str,
+    distance_km: float,
+    serial_number: Optional[str] = None,
+    description: Optional[str] = None,
+    app_url: Optional[str] = None,
+) -> bool:
+    """Notify an opted-in user that someone filed a lost/stolen report
+    within their alert radius. Never reveals the reporter's contact
+    details - only the item details they'd need to keep an eye out."""
+    kind_de = "gestohlen" if report_type == "stolen" else "verloren"
+    lines = [
+        f"In deiner Umgebung (ca. {distance_km:.1f} km entfernt) wurde soeben ein Gegenstand als {kind_de} gemeldet:",
+        "",
+        f"Titel: {title}",
+        f"Kategorie: {category}",
+    ]
+    if serial_number:
+        lines.append(f"Seriennummer/Rahmennummer: {serial_number}")
+    if description:
+        lines.append(f"Beschreibung: {description}")
+    if app_url:
+        lines.append("")
+        lines.append(f"Details in der App: {app_url}")
+    lines.append("")
+    lines.append(
+        "Du erhältst diese Benachrichtigung, weil du in deinem Profil Umkreis-Alarme aktiviert hast. "
+        "Du kannst das dort jederzeit wieder abschalten."
+    )
+    body = "\n".join(lines)
+    subject_kind = "Diebstahl" if report_type == "stolen" else "Verlust"
+    return send_email(config, to_email, f"⚠️ {subject_kind} in deiner Nähe - TrailFound", body)

@@ -8,6 +8,7 @@ export default {
     logout: "Log out",
     messages: "Messages",
     search: "Search",
+    lost: "Report loss/theft",
   },
   home: {
     nearbyCount: "items near you",
@@ -16,10 +17,26 @@ export default {
     reportedPins: "reported pins.",
     all: "All",
     reportButton: "Report a find",
+    lostButton: "Loss/theft",
     locateMe: "Use my location",
     contactFinder: "Contact finder",
     away: "away",
     foundOn: "Found on",
+    onboarding: {
+      title: "Welcome to TrailFound 👋",
+      intro: "Here's how it works in 3 steps:",
+      step1Title: "1. Report a find or a loss",
+      step1Body:
+        "Found something? Report it with a photo and location. Lost something or had it stolen? Report it so people nearby can keep an eye out.",
+      step2Title: "2. Search",
+      step2Body:
+        "Browse the map or upload your route's GPX track - we check every meter against reported finds.",
+      step3Title: "3. Connect Strava",
+      step3Body:
+        "Connect your Strava account in your profile to automatically match today's activity against reported finds.",
+      dismiss: "Let's go!",
+      reopen: "How it works",
+    },
   },
   finder: {
     heading: "Report a find",
@@ -48,6 +65,25 @@ export default {
       noTitle: "Please enter a title.",
       geoUnsupported: "Geolocation isn't supported by this browser.",
       geoFailed: "Couldn't determine your location. Please tap the map manually.",
+    },
+  },
+  lost: {
+    heading: "Report a loss or theft",
+    tapHint: "Tap the map: where did it happen?",
+    reportType: "Report type",
+    typeLost: "Lost",
+    typeStolen: "Stolen",
+    serialNumber: "Serial / frame number",
+    serialNumberPlaceholder: "e.g. WBA12345678901234",
+    serialNumberHint: "Optional, but very helpful for positive identification (e.g. by the police).",
+    photoOptional: "Photo (optional)",
+    occurredDate: "Date",
+    alertHint: "Users with radius alerts enabled within {{radius}} km are notified automatically by email.",
+    submit: "Submit report",
+    success: "Report saved - nearby users will be notified.",
+    myReports: "My reports",
+    errors: {
+      noPin: "Please mark the location on the map first.",
     },
   },
   search: {
@@ -112,6 +148,15 @@ export default {
     stravaUnavailable: "Not available (server not configured)",
     stravaUnavailableTitle: "STRAVA_CLIENT_ID/SECRET not set",
     stravaConnectError: "Strava connection failed. Please try again.",
+    alertsHeading: "Location & radius alerts",
+    alertsHint:
+      "Set your approximate home location to get emailed automatically about loss/theft reports near you. Optional, changeable anytime.",
+    alertOptInLabel: "Enable radius alerts",
+    homeLocationSet: "Home location set",
+    homeLocationNotSet: "No home location set",
+    pickOnMap: "Pick on map",
+    hideMap: "Hide map",
+    saveLocation: "Save location",
   },
   admin: {
     heading: "Admin",
@@ -191,6 +236,8 @@ export default {
     hasAccount: "Already have an account?",
     toRegister: "Sign up",
     toLogin: "Log in",
+    alertOptIn: "Would you like to be notified about thefts or losses in your region?",
+    alertOptInHint: "Optional, changeable anytime in your profile. To receive alerts, you can add your approximate home location there.",
   },
   categories: {
     Trinkflasche: "Water bottle",
@@ -208,5 +255,41 @@ export default {
     removeFile: "Remove file",
     removePhoto: "Remove photo",
     preview: "Preview",
+  },
+  legal: {
+    imprintLink: "Legal notice",
+    privacyLink: "Privacy",
+    imprintTitle: "Legal notice",
+    imprintBody:
+      "Information per §5 TMG (placeholder for the alpha test phase):\n\nTrailFound (prototype)\nOperator: [insert name/company]\nAddress: [insert address]\nEmail: [insert contact email]\n\nThis app is in a non-commercial alpha test phase. Responsible for content per §55(2) RStV: [insert name].",
+    privacyTitle: "Privacy policy",
+    privacyIntro:
+      "This overview describes what data TrailFound processes and why - especially location data, which is central to this app.",
+    privacySections: [
+      {
+        title: "1. Data controller",
+        body: "The operator of this alpha version is responsible for data processing (see legal notice).",
+      },
+      {
+        title: "2. Account & usage data",
+        body: "When you register, we store your email address and your password (as a hash, never in plain text), plus an optional display name. This data is only used to provide the service.",
+      },
+      {
+        title: "3. Location data on found/lost reports",
+        body: "When you report a find, loss, or theft, we store the location you provide (map coordinates) along with optional details like a photo and serial number. This is required for the app's core function (matching finds to reports) and is only shown to other users to the extent needed to use the app - your email address is never disclosed.",
+      },
+      {
+        title: "4. Home-location opt-in for radius alerts",
+        body: "Radius alerts are an opt-in feature: only if you enable it in your profile and save an approximate home location do we use it to email you when a theft or loss is reported nearby. Without active opt-in, your home location is neither stored nor used for alerts. You can revoke the opt-in and delete the saved location in your profile at any time.",
+      },
+      {
+        title: "5. Email notifications",
+        body: "System emails (e.g. new messages, radius alerts) are sent via the email server configured by the operator. Your email address is never shared with other users.",
+      },
+      {
+        title: "6. Your rights",
+        body: "You have the right to access, correct, and delete your data at any time. You can have your account and all associated data deleted via support at any time.",
+      },
+    ],
   },
 };

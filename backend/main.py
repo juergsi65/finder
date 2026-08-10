@@ -5,14 +5,24 @@ import shutil
 import uuid
 from typing import Optional, List
 
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from database import Base, engine, get_db, run_lightweight_migrations
-from models import FoundItem, User, Conversation, Message, AppSettings, STATUS_ACTIVE, STATUS_ARCHIVED
+from database import Base, SessionLocal, engine, get_db, run_lightweight_migrations
+from models import (
+    FoundItem,
+    User,
+    Conversation,
+    Message,
+    AppSettings,
+    LostItemReport,
+    STATUS_ACTIVE,
+    STATUS_ARCHIVED,
+    REPORT_TYPES,
+)
 from schemas import (
     FoundItemOut,
     SearchResponse,
@@ -26,6 +36,7 @@ from schemas import (
     ConversationOut,
     AppSettingsOut,
     AppSettingsUpdate,
+    LostItemReportOut,
 )
 from auth import (
     hash_password,
@@ -37,7 +48,7 @@ from auth import (
 from geo import haversine_distance_m
 from gpx_matching import extract_track_points, GpxParseError, DEFAULT_RADIUS_M, MAX_RADIUS_M
 from search import build_search_response
-from email_utils import send_new_message_notification
+from email_utils import send_new_message_notification, send_radius_alert
 from settings_store import get_or_create_settings, get_strava_config, get_smtp_config
 import strava
 
@@ -46,6 +57,10 @@ logger = logging.getLogger("trailfound")
 
 MAX_NEARBY_RADIUS_M = 500_000.0  # 500km - generous upper bound, just sanity-checks input
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+# Radius (meters) for the automatic lost/stolen alert: how far from a
+# user's saved home location a new report has to be to email them.
+ALERT_RADIUS_M = 15_000.0
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -234,6 +249,137 @@ def delete_found_item(
     return {"ok": True}
 
 
+# --- Lost / stolen reports + radius alerts ---------------------------------
+
+
+def _notify_nearby_users(db: Session, report: LostItemReport) -> None:
+    """Emails every opted-in user whose saved home location is within
+    ALERT_RADIUS_M of where the item was lost/stolen. Best-effort: an
+    unconfigured/broken SMTP relay or a single bad address must never break
+    report submission, so failures are only logged, and this always runs
+    as a FastAPI BackgroundTask (after the response is already sent) with
+    its own DB session rather than the request's - see the caller."""
+    config = get_smtp_config(db)
+    if not config.is_configured:
+        return
+
+    candidates = (
+        db.query(User)
+        .filter(User.alert_opt_in.is_(True))
+        .filter(User.home_lat.isnot(None), User.home_lng.isnot(None))
+        .filter(User.id != report.reporter_id)
+        .all()
+    )
+    for user in candidates:
+        distance_m = haversine_distance_m(report.lat, report.lng, user.home_lat, user.home_lng)
+        if distance_m > ALERT_RADIUS_M:
+            continue
+        try:
+            send_radius_alert(
+                config,
+                user.email,
+                report_type=report.report_type,
+                title=report.title,
+                category=report.category,
+                distance_km=distance_m / 1000,
+                serial_number=report.serial_number,
+                description=report.description,
+                app_url=FRONTEND_URL,
+            )
+        except Exception:  # noqa: BLE001 - one bad address must not stop the rest
+            logger.exception("Umkreis-Alarm an %s fehlgeschlagen", user.email)
+
+
+def _notify_nearby_users_task(report_id: int) -> None:
+    """BackgroundTasks entry point: opens its own DB session since the
+    request-scoped one from Depends(get_db) is already closed by the time
+    this runs (it fires after the HTTP response has been sent)."""
+    db = SessionLocal()
+    try:
+        report = db.query(LostItemReport).filter(LostItemReport.id == report_id).first()
+        if report:
+            _notify_nearby_users(db, report)
+    finally:
+        db.close()
+
+
+@app.post("/api/lost-items", response_model=LostItemReportOut, status_code=201)
+def create_lost_item_report(
+    background_tasks: BackgroundTasks,
+    report_type: str = Form(...),
+    title: str = Form(...),
+    category: str = Form(...),
+    description: Optional[str] = Form(None),
+    serial_number: Optional[str] = Form(None),
+    lat: float = Form(...),
+    lng: float = Form(...),
+    occurred_date: Optional[str] = Form(None),
+    photo: Optional[UploadFile] = File(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Files a 'I lost this' / 'this was stolen' report for the owner's own
+    gear (as opposed to POST /api/found-items, filed by whoever *found*
+    something). Triggers a background radius alert to nearby opted-in
+    users - see _notify_nearby_users."""
+    if report_type not in REPORT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Ungültiger Meldungstyp: {report_type}")
+    if category not in CATEGORIES:
+        raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
+
+    title = title.strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Bitte einen Titel angeben.")
+
+    parsed_date = None
+    if occurred_date:
+        try:
+            parsed_date = datetime.date.fromisoformat(occurred_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Ungültiges Datum (Format: JJJJ-MM-TT).")
+        if parsed_date > datetime.date.today():
+            raise HTTPException(status_code=400, detail="Das Datum darf nicht in der Zukunft liegen.")
+
+    photo_path = None
+    if photo is not None and photo.filename:
+        ext = os.path.splitext(photo.filename)[1]
+        filename = f"{uuid.uuid4().hex}{ext}"
+        dest = os.path.join(UPLOAD_DIR, filename)
+        with open(dest, "wb") as f:
+            shutil.copyfileobj(photo.file, f)
+        photo_path = f"/uploads/{filename}"
+
+    report = LostItemReport(
+        reporter_id=current_user.id,
+        report_type=report_type,
+        title=title,
+        category=category,
+        description=description,
+        serial_number=(serial_number.strip() or None) if serial_number else None,
+        photo_path=photo_path,
+        lat=lat,
+        lng=lng,
+        occurred_date=parsed_date,
+    )
+    db.add(report)
+    db.commit()
+    db.refresh(report)
+
+    background_tasks.add_task(_notify_nearby_users_task, report.id)
+
+    return report
+
+
+@app.get("/api/lost-items/mine", response_model=List[LostItemReportOut])
+def list_my_lost_items(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return (
+        db.query(LostItemReport)
+        .filter(LostItemReport.reporter_id == current_user.id)
+        .order_by(LostItemReport.created_at.desc())
+        .all()
+    )
+
+
 # --- Search (GPX upload) ---------------------------------------------------
 
 
@@ -310,6 +456,7 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hash_password(payload.password),
         role="admin" if is_first_user else payload.role,
         display_name=payload.display_name,
+        alert_opt_in=payload.alert_opt_in,
     )
     db.add(user)
     db.commit()
@@ -341,7 +488,15 @@ def update_me(
     db: Session = Depends(get_db),
 ):
     for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(current_user, field, value or None)
+        # Blank string means "clear this field" for the text fields
+        # (display_name, komoot_id, garmin_id). For everything else - the
+        # boolean alert_opt_in and the home_lat/home_lng floats, where 0.0
+        # is a real coordinate (equator/prime meridian) - `value or None`
+        # would wrongly wipe `False`/`0.0` to NULL, so only strings get
+        # that treatment.
+        if isinstance(value, str):
+            value = value.strip() or None
+        setattr(current_user, field, value)
     db.commit()
     db.refresh(current_user)
     return current_user

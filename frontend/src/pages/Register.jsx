@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
 import Spinner from "../components/Spinner.jsx";
+import LegalFooter from "../components/LegalFooter.jsx";
 
 export default function Register() {
   const { register } = useAuth();
@@ -13,6 +14,7 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState("user");
   const [displayName, setDisplayName] = useState("");
+  const [alertOptIn, setAlertOptIn] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -29,7 +31,13 @@ export default function Register() {
     }
     setSubmitting(true);
     try {
-      await register({ email, password, role, displayName: role === "verein" ? displayName : undefined });
+      await register({
+        email,
+        password,
+        role,
+        displayName: role === "verein" ? displayName : undefined,
+        alertOptIn,
+      });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message);
@@ -130,6 +138,20 @@ export default function Register() {
             />
           </div>
 
+          <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={alertOptIn}
+              onChange={(e) => setAlertOptIn(e.target.checked)}
+              className="mt-0.5 w-4 h-4 shrink-0 rounded border-slate-300 text-trail-600 focus:ring-trail-500"
+            />
+            <span className="text-xs text-slate-600 leading-relaxed">
+              <span className="font-medium text-slate-700">{t("auth.alertOptIn")}</span>
+              <br />
+              {t("auth.alertOptInHint")}
+            </span>
+          </label>
+
           {error && (
             <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
               {error}
@@ -152,6 +174,8 @@ export default function Register() {
             {t("auth.toLogin")}
           </Link>
         </p>
+
+        <LegalFooter className="mt-4" />
       </div>
     </div>
   );

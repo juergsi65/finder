@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 CATEGORIES = ["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"]
 ROLES = ["user", "verein"]  # "admin" is never self-selectable at registration
+REPORT_TYPES = ["lost", "stolen"]
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -88,6 +89,8 @@ class UserCreate(BaseModel):
     password: str
     role: str = "user"
     display_name: Optional[str] = None
+    # GDPR-relevant opt-in, off by default - see User.alert_opt_in.
+    alert_opt_in: bool = False
 
     @field_validator("email")
     @classmethod
@@ -123,6 +126,9 @@ class UserOut(BaseModel):
     komoot_id: Optional[str] = None
     garmin_id: Optional[str] = None
     strava_connected: bool = False
+    alert_opt_in: bool = False
+    home_lat: Optional[float] = None
+    home_lng: Optional[float] = None
 
     class Config:
         from_attributes = True
@@ -177,6 +183,30 @@ class ProfileUpdate(BaseModel):
     display_name: Optional[str] = None
     komoot_id: Optional[str] = None
     garmin_id: Optional[str] = None
+    # Opt-in radius alerts (see User.alert_opt_in) + the home location they
+    # apply to. home_lat/home_lng of exactly 0.0 (equator/prime meridian)
+    # are legitimate coordinates, not "unset" - see update_me() in main.py,
+    # which must not treat them as falsy.
+    alert_opt_in: Optional[bool] = None
+    home_lat: Optional[float] = None
+    home_lng: Optional[float] = None
+
+
+class LostItemReportOut(BaseModel):
+    id: int
+    report_type: str
+    title: str
+    category: str
+    description: Optional[str] = None
+    serial_number: Optional[str] = None
+    photo_path: Optional[str] = None
+    lat: float
+    lng: float
+    occurred_date: Optional[datetime.date] = None
+    created_at: Optional[datetime.datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # --- Messaging ----------------------------------------------------------
