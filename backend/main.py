@@ -11,7 +11,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from database import Base, engine, get_db
+from database import Base, engine, get_db, run_lightweight_migrations
 from models import FoundItem, User, Conversation, Message, STATUS_ACTIVE, STATUS_ARCHIVED
 from schemas import (
     FoundItemOut,
@@ -49,6 +49,7 @@ UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 Base.metadata.create_all(bind=engine)
+run_lightweight_migrations()
 
 app = FastAPI(title="TrailFound API", version="0.3.0")
 
