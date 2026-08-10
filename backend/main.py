@@ -51,7 +51,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 Base.metadata.create_all(bind=engine)
 run_lightweight_migrations()
 
-app = FastAPI(title="TrailFound API", version="0.3.0")
+app = FastAPI(title="TrailFound API", version="0.4.0")
 
 # Prototype: allow any origin so the Vite dev server (and any device on the
 # LAN testing the mobile web app) can talk to the API without extra config.
@@ -69,7 +69,10 @@ app.include_router(strava.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    # Includes the API version so a deploy can be verified with a single
+    # `curl .../api/health` - e.g. to confirm a container is actually
+    # running the code you just pushed, not a stale cached image.
+    return {"status": "ok", "version": app.version}
 
 
 @app.get("/api/categories")
