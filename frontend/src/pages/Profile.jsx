@@ -121,7 +121,8 @@ export default function Profile() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-6 bg-white">
+    <div className="h-full overflow-y-auto p-4 bg-white">
+    <div className="max-w-2xl mx-auto w-full space-y-6">
       <div>
         <h2 className="font-semibold text-slate-800 text-lg">{t("profile.heading")}</h2>
         <p className="text-sm text-slate-500 mt-1">{user.email}</p>
@@ -239,6 +240,7 @@ export default function Profile() {
       >
         {t("profile.logout")}
       </button>
+    </div>
     </div>
   );
 }

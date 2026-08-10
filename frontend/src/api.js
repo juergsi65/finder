@@ -284,6 +284,12 @@ export async function apiAdminStats() {
   return res.json();
 }
 
+export async function apiAdminListConversations() {
+  const res = await fetch("/api/admin/conversations", { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Unterhaltungen konnten nicht geladen werden"));
+  return res.json();
+}
+
 export async function apiAdminGetSettings() {
   const res = await fetch("/api/admin/settings", { headers: authHeaders() });
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Einstellungen konnten nicht geladen werden"));

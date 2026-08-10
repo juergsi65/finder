@@ -160,7 +160,8 @@ export default function FinderMode() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-5 bg-white rounded-t-2xl -mt-4 relative shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 bg-white rounded-t-2xl -mt-4 relative shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+      <div className="max-w-2xl mx-auto w-full space-y-5">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold text-slate-800 text-lg">{t("finder.heading")}</h2>
           {pin ? (
@@ -237,6 +238,7 @@ export default function FinderMode() {
           {submitting && <Spinner />}
           {submitting ? t("finder.submitting") : t("finder.submit")}
         </button>
+      </div>
       </form>
     </div>
   );

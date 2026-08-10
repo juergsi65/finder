@@ -417,6 +417,10 @@ def list_conversations(current_user: User = Depends(get_current_user), db: Sessi
 
 
 def _require_participant(conv: Conversation, user: User) -> None:
+    # Admins can open any conversation read/write for moderation purposes
+    # (e.g. following up on a report) - everyone else must be a participant.
+    if user.role == "admin":
+        return
     if user.id != conv.starter_id and user.id != conv.found_item.reporter_id:
         raise HTTPException(status_code=403, detail="Du bist kein Teil dieser Unterhaltung.")
 
@@ -505,7 +509,17 @@ def admin_stats(_admin: User = Depends(require_admin), db: Session = Depends(get
         "users": db.query(User).count(),
         "found_items_active": db.query(FoundItem).filter(FoundItem.status == STATUS_ACTIVE).count(),
         "found_items_archived": db.query(FoundItem).filter(FoundItem.status == STATUS_ARCHIVED).count(),
+        "conversations": db.query(Conversation).count(),
     }
+
+
+@app.get("/api/admin/conversations", response_model=List[ConversationOut])
+def admin_list_conversations(admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """All conversations across all users, for moderation - an admin isn't a
+    participant in these, so this bypasses the normal starter/reporter
+    check that GET /api/conversations relies on."""
+    convs = db.query(Conversation).order_by(Conversation.created_at.desc()).all()
+    return [_conversation_to_out(c, admin.id) for c in convs]
 
 
 @app.get("/api/admin/settings", response_model=AppSettingsOut)

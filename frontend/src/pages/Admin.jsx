@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   apiAdminListUsers,
   apiAdminDeleteUser,
   apiAdminStats,
   apiAdminListFoundItems,
+  apiAdminListConversations,
   apiAdminGetSettings,
   apiAdminUpdateSettings,
   deleteFoundItem,
@@ -93,7 +95,8 @@ export default function Admin() {
   }
 
   return (
-    <div className="h-full overflow-y-auto p-4 space-y-5 bg-white">
+    <div className="h-full overflow-y-auto p-4 bg-white">
+    <div className="max-w-3xl mx-auto w-full space-y-5">
       <div>
         <h2 className="font-semibold text-slate-800 text-lg flex items-center gap-2">
           <span aria-hidden>👑</span> {t("admin.heading")}
@@ -115,6 +118,15 @@ export default function Admin() {
         </button>
         <button
           type="button"
+          onClick={() => setMainTab("messages")}
+          className={`px-4 py-1.5 font-medium transition ${
+            mainTab === "messages" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          {t("admin.tabMessages")}
+        </button>
+        <button
+          type="button"
           onClick={() => setMainTab("apiConfig")}
           className={`px-4 py-1.5 font-medium transition ${
             mainTab === "apiConfig" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
@@ -129,7 +141,7 @@ export default function Admin() {
       {mainTab === "overview" ? (
         <div className="space-y-6">
           {stats && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-trail-700">{stats.users}</p>
                 <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.users")}</p>
@@ -141,6 +153,10 @@ export default function Admin() {
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-slate-600">{stats.found_items_archived}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.foundItemsArchived")}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-slate-600">{stats.conversations ?? "-"}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.conversations")}</p>
               </div>
             </div>
           )}
@@ -237,10 +253,82 @@ export default function Admin() {
             )}
           </div>
         </div>
+      ) : mainTab === "messages" ? (
+        <AdminMessagesPanel />
       ) : (
         <ApiConfigPanel />
       )}
     </div>
+    </div>
+  );
+}
+
+function AdminMessagesPanel() {
+  const { t } = useTranslation();
+  const [conversations, setConversations] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setError("");
+    apiAdminListConversations()
+      .then((data) => {
+        if (!cancelled) setConversations(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (error) {
+    return <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>;
+  }
+
+  if (conversations === null) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <Spinner className="w-6 h-6 text-trail-600" />
+      </div>
+    );
+  }
+
+  if (conversations.length === 0) {
+    return <p className="text-sm text-slate-400">{t("admin.messagesEmpty")}</p>;
+  }
+
+  return (
+    <ul className="space-y-2">
+      {conversations.map((c) => {
+        const last = c.messages[c.messages.length - 1];
+        return (
+          <li key={c.id}>
+            <Link
+              to={`/nachrichten/${c.id}`}
+              className="flex items-center gap-3 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md hover:border-trail-300 transition"
+            >
+              <span className="text-xl shrink-0" aria-hidden>
+                {categoryIcon(c.found_item.category)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-slate-800 truncate">{c.found_item.title}</p>
+                <p className="text-xs text-slate-400 truncate">
+                  {t("admin.messagesReporter")}: {c.found_item.reporter?.display_name || c.found_item.reporter?.id || "-"}
+                  {" · "}
+                  {t("admin.messagesStartedBy")} #{c.starter_id}
+                </p>
+                {last && <p className="text-xs text-slate-500 truncate mt-0.5">{last.body}</p>}
+              </div>
+              <span className="shrink-0 text-xs text-trail-700 font-semibold px-2.5 py-1.5 rounded-full border border-trail-200 whitespace-nowrap">
+                {t("admin.messagesOpen")}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

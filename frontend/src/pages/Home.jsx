@@ -101,70 +101,76 @@ export default function Home() {
         flyToTarget={flyToTarget}
       />
 
-      {/* Nearby-count banner + category filter, floating over the map */}
-      <div className="absolute top-3 left-3 right-3 z-[1000] flex flex-col gap-2">
-        <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3">
-          {locating ? (
-            <p className="text-sm text-slate-500 flex items-center gap-2">
-              <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
-            </p>
-          ) : userPos ? (
-            <p className="text-sm text-slate-800">
-              <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
-              {t("home.nearbyCount")} <span className="text-slate-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
-            </p>
-          ) : (
-            <p className="text-sm text-slate-600">
-              {t("home.noLocation")}{" "}
-              <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
-              {t("home.reportedPins")}
-            </p>
-          )}
-          {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
-        </div>
+      {/* Overlay layer - centered to a phone-width column on large screens so
+          the floating UI doesn't sprawl edge-to-edge on wide desktops. */}
+      <div className="absolute inset-0 z-[1000] flex justify-center pointer-events-none">
+        <div className="relative w-full max-w-3xl h-full">
+          {/* Nearby-count banner + category filter, floating over the map */}
+          <div className="absolute top-3 left-3 right-3 flex flex-col gap-2 pointer-events-auto">
+            <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3">
+              {locating ? (
+                <p className="text-sm text-slate-500 flex items-center gap-2">
+                  <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
+                </p>
+              ) : userPos ? (
+                <p className="text-sm text-slate-800">
+                  <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
+                  {t("home.nearbyCount")} <span className="text-slate-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
+                </p>
+              ) : (
+                <p className="text-sm text-slate-600">
+                  {t("home.noLocation")}{" "}
+                  <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
+                  {t("home.reportedPins")}
+                </p>
+              )}
+              {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+            </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-          <FilterChip
-            active={categoryFilter === ALL_CATEGORIES}
-            onClick={() => setCategoryFilter(ALL_CATEGORIES)}
-            icon="🗺️"
-            label={t("home.all")}
-          />
-          {categories.map((c) => (
-            <FilterChip
-              key={c}
-              active={categoryFilter === c}
-              onClick={() => setCategoryFilter(c)}
-              icon={categoryIcon(c)}
-              label={t(`categories.${c}`)}
-            />
-          ))}
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+              <FilterChip
+                active={categoryFilter === ALL_CATEGORIES}
+                onClick={() => setCategoryFilter(ALL_CATEGORIES)}
+                icon="🗺️"
+                label={t("home.all")}
+              />
+              {categories.map((c) => (
+                <FilterChip
+                  key={c}
+                  active={categoryFilter === c}
+                  onClick={() => setCategoryFilter(c)}
+                  icon={categoryIcon(c)}
+                  label={t(`categories.${c}`)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Floating actions */}
+          <button
+            type="button"
+            onClick={handleLocate}
+            className="absolute bottom-24 right-3 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
+            aria-label={t("home.locateMe")}
+          >
+            🎯
+          </button>
+
+          <Link
+            to="/suche"
+            className="absolute bottom-24 left-3 pointer-events-auto bg-white hover:bg-slate-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+          >
+            <span aria-hidden>🔍</span> {t("nav.search")}
+          </Link>
+
+          <Link
+            to="/gefunden"
+            className="absolute bottom-5 right-3 pointer-events-auto bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+          >
+            <span aria-hidden>📍</span> {t("home.reportButton")}
+          </Link>
         </div>
       </div>
-
-      {/* Floating actions */}
-      <button
-        type="button"
-        onClick={handleLocate}
-        className="absolute bottom-24 right-3 z-[1000] bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
-        aria-label={t("home.locateMe")}
-      >
-        🎯
-      </button>
-
-      <Link
-        to="/suche"
-        className="absolute bottom-24 left-3 z-[1000] bg-white hover:bg-slate-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
-      >
-        <span aria-hidden>🔍</span> {t("nav.search")}
-      </Link>
-
-      <Link
-        to="/gefunden"
-        className="absolute bottom-5 right-3 z-[1000] bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
-      >
-        <span aria-hidden>📍</span> {t("home.reportButton")}
-      </Link>
     </div>
   );
 }
