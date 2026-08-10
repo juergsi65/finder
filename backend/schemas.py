@@ -28,13 +28,26 @@ class FoundItemOut(BaseModel):
     title: str
     category: str
     description: Optional[str] = None
-    photo_path: str
+    # Photo is mandatory for *new* reports (enforced in the create endpoint),
+    # but plenty of real rows predate that rule - it used to be an optional
+    # field, so any find reported before that change has photo_path=NULL in
+    # the database. Modeling it as required here would 500 on every one of
+    # those rows (ResponseValidationError) the moment it's read back.
+    photo_path: Optional[str] = None
     lat: float
     lng: float
     found_date: datetime.date
     status: str
     reporter: Optional[ReporterOut] = None
-    created_at: datetime.datetime
+    # None of the models' created_at columns actually declare
+    # nullable=False (an oversight present since the very first schema,
+    # not something the recent rewrite introduced) - the Python-side
+    # `default=` only fills it in on inserts made through the ORM, so it's
+    # required in practice but not guaranteed by the database. Optional
+    # here for the same reason as photo_path above: a hypothetical row
+    # without one must never turn into a 500 instead of just omitting the
+    # field.
+    created_at: Optional[datetime.datetime] = None
     # Only populated when the request included a reference lat/lng (see
     # GET /api/found-items) - powers "X in deiner Nähe" without a separate
     # endpoint.
@@ -104,7 +117,9 @@ class UserOut(BaseModel):
     email: str
     role: str
     display_name: Optional[str] = None
-    created_at: datetime.datetime
+    # See FoundItemOut.created_at - same "column isn't actually NOT NULL"
+    # situation.
+    created_at: Optional[datetime.datetime] = None
     komoot_id: Optional[str] = None
     garmin_id: Optional[str] = None
     strava_connected: bool = False
@@ -145,7 +160,7 @@ class MessageOut(BaseModel):
     id: int
     sender_id: int
     body: str
-    created_at: datetime.datetime
+    created_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
@@ -156,7 +171,7 @@ class ConversationOut(BaseModel):
     found_item: FoundItemOut
     starter_id: int
     other_participant_id: int
-    created_at: datetime.datetime
+    created_at: Optional[datetime.datetime] = None
     messages: List[MessageOut] = []
 
     class Config:
