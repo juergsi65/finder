@@ -1,6 +1,6 @@
 import datetime
 import re
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, field_validator
 
 CATEGORIES = ["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"]
@@ -16,33 +16,14 @@ class FoundItemOut(BaseModel):
     lat: float
     lng: float
     created_at: datetime.datetime
+    # Only populated when the request included a reference lat/lng (see
+    # GET /api/found-items) - lets the map show "3.2 km entfernt" per pin
+    # and power the "X Gegenstände in deiner Nähe" count, without a
+    # separate endpoint or route-matching logic.
+    distance_m: Optional[float] = None
 
     class Config:
         from_attributes = True
-
-
-class MatchResult(BaseModel):
-    item: FoundItemOut
-    distance_m: float
-    matched_track_point: dict
-
-
-class TrackPoint(BaseModel):
-    lat: float
-    lng: float
-
-
-class MatchResponse(BaseModel):
-    matched: bool
-    track_points_checked: int
-    radius_m: float
-    matches: List[MatchResult]
-    # Downsampled polyline of the uploaded route, so the frontend can draw
-    # it on the result map alongside the matched pins.
-    track_preview: List[TrackPoint] = []
-    # Earliest/latest timestamp found in the GPX track, if any point had one.
-    track_started_at: Optional[datetime.datetime] = None
-    track_finished_at: Optional[datetime.datetime] = None
 
 
 # --- Auth / users -----------------------------------------------------------

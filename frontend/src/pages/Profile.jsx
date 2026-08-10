@@ -68,8 +68,8 @@ export default function Profile() {
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-1">Verknüpfte Konten</h3>
         <p className="text-xs text-gray-400 mb-3">
-          Verbinde TrailFound zukünftig mit deinen Trainings-Apps, um Routen direkt zu
-          importieren. (Vorbereitet - die echte Anmeldung folgt.)
+          Verbinde TrailFound zukünftig mit deinen Trainings-Apps, um dein Profil
+          abzugleichen. (Vorbereitet - die echte Anmeldung folgt.)
         </p>
         <div className="space-y-2">
           {CONNECTIONS.map(({ key, label, icon }) => {

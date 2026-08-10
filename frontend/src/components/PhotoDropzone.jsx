@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * Drag-and-drop (+ tap-to-browse / camera-capture) photo upload zone with
@@ -7,17 +7,19 @@ import { useEffect, useRef, useState } from "react";
 export default function PhotoDropzone({ file, onFileSelected }) {
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState(null);
+
+  // Derived synchronously from `file` (not via useEffect + state) so it can
+  // never go stale for a render: mirroring a prop into state via an effect
+  // means there's a render in between - after the parent clears `file` but
+  // before the effect has run - where the old previewUrl is still truthy
+  // while `file` is already null, crashing `file.name` below.
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
 
   useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   function pick(fileList) {
     const f = fileList?.[0];
@@ -54,7 +56,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
         className="hidden"
         onChange={(e) => pick(e.target.files)}
       />
-      {previewUrl ? (
+      {file ? (
         <div className="flex items-center gap-3 text-left">
           <img
             src={previewUrl}

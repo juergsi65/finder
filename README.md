@@ -1,41 +1,38 @@
 # TrailFound 🧭
 
 Mobiler Web-App-Prototyp (MVP), der Sportler:innen hilft, verlorene Ausrüstung
-(Trinkflaschen, Radcomputer, Pumpen, Brillen, ...) wiederzufinden - über
-Fund-Pins auf einer Karte und einen automatischen Abgleich mit dem eigenen
-GPX-Track.
+(Trinkflaschen, Radcomputer, Pumpen, Brillen, ...) wiederzufinden - Fundstücke
+sind feste GPS-Punkte auf einer interaktiven Karte, kein Routen-Upload nötig.
 
 ## Funktionsweise
 
-1. **Finder** setzt einen Pin auf der Karte an der Fundstelle (oder nutzt den
-   📍-Standort-Button), wählt eine Kategorie über die Icon-Auswahl, lädt
-   optional ein Foto hoch (Drag & Drop oder Kamera) und beschreibt den Fund.
-2. **Sucher** lädt die GPX-Datei der eigenen Route hoch (Drag & Drop) und
-   wählt die verlorene Kategorie.
-3. Das Backend prüft die **gesamte Route** - nicht nur die aufgezeichneten
-   GPS-Punkte, sondern auch die Strecke *zwischen* ihnen - per
-   Punkt-zu-Strecken-Distanz darauf, ob ein Fund-Pin derselben Kategorie
-   innerhalb von **30 Metern** liegt. Bei einem Treffer erscheint eine
-   Benachrichtigung mit Karte (Route + Fund-Pin + exaktem Trefferpunkt) und
-   Details.
-4. **Konten:** Registrierung/Login (E-Mail + Passwort, JWT-Session). Das
+1. **Startseite = Karte.** Beim Öffnen der App fragt TrailFound den eigenen
+   Standort ab und zeigt sofort eine interaktive Karte mit allen gemeldeten
+   Fund-Pins, plus einer Zahl wie "3 Gegenstände in deiner Nähe (5 km)".
+   Kategorie-Chips ("Alle", 🧴 Trinkflasche, 📟 Radcomputer, ...) filtern die
+   Karte visuell.
+2. **Finder** tippt auf der Karte eine Fundstelle an (oder nutzt den
+   🎯-Standort-Button), wählt eine Kategorie über die Icon-Auswahl, lädt
+   optional ein Foto hoch (Drag & Drop oder Kamera, mit Fortschrittsbalken)
+   und beschreibt den Fund.
+3. **Konten:** Registrierung/Login (E-Mail + Passwort, JWT-Session). Das
    **erste** registrierte Konto auf einer frischen Installation wird
-   automatisch zum Admin - alle weiteren Konten sind normale Nutzer:innen.
-   Admins sehen unter `/admin` Nutzer- und Fund-Pin-Verwaltung inkl.
-   Löschfunktion. Im Profil (`/profil`) lässt sich (als Platzhalter für
-   spätere echte OAuth-Anbindung) eine Strava-/Komoot-/Garmin-Konto-ID
-   hinterlegen.
+   automatisch zum Admin - alle weiteren Konten sind normale Nutzer:innen
+   ohne Admin-Rechte. Admins sehen unter `/admin` Nutzer- und
+   Fund-Pin-Verwaltung inkl. Löschfunktion. Im Profil (`/profil`) lässt sich
+   (als Platzhalter für spätere echte OAuth-Anbindung) eine
+   Strava-/Komoot-/Garmin-Konto-ID hinterlegen.
 
 ## Tech-Stack
 
 - **Frontend:** React + Vite, Tailwind CSS, React-Leaflet (OpenStreetMap),
   React Router
-- **Backend:** Python + FastAPI, `gpxpy` fürs GPX-Parsing, `bcrypt` fürs
-  Passwort-Hashing, `PyJWT` für Login-Sessions
-- **Datenbank:** SQLite (SQLAlchemy) - Koordinaten als Lat/Lng-Spalten,
-  Radius-Abgleich per Punkt-zu-Strecken-Projektion in Python. Für den
-  Umstieg auf PostgreSQL + PostGIS müssten nur `database.py`/`main.py`
-  angepasst werden.
+- **Backend:** Python + FastAPI, `bcrypt` fürs Passwort-Hashing, `PyJWT` für
+  Login-Sessions
+- **Datenbank:** SQLite (SQLAlchemy) - Fundstücke sind Lat/Lng-Punkte; die
+  "in deiner Nähe"-Distanz wird serverseitig per Haversine-Formel berechnet
+  (`GET /api/found-items?lat=&lng=`). Für den Umstieg auf PostgreSQL +
+  PostGIS müssten nur `database.py`/`main.py` angepasst werden.
 
 ## Projektstruktur
 
@@ -46,21 +43,20 @@ backend/
   schemas.py         Pydantic-Schemas + Kategorien
   database.py        SQLite-Setup
   auth.py            Passwort-Hashing (bcrypt) + JWT-Erzeugung/-Prüfung
-  geo.py             Punkt-zu-Strecken-Distanzberechnung
-  gpx_matching.py     GPX-Parsing + Matching-Logik (Kernstück)
+  geo.py             Haversine-Distanzberechnung ("X in deiner Nähe")
   requirements.txt
   uploads/           Hochgeladene Fotos (zur Laufzeit)
 
 frontend/
   src/
-    pages/Home.jsx         Startseite mit den zwei Haupt-Buttons
-    pages/FinderMode.jsx   Modus 1: Pin setzen + Formular
-    pages/SeekerMode.jsx   Modus 2: GPX-Upload + Treffer-Anzeige
+    pages/Home.jsx         Startseite: interaktive Karte + Nähe-Zähler + Filter
+    pages/FinderMode.jsx   Fund melden: Pin setzen + Formular + Upload-Fortschritt
     pages/Login.jsx, Register.jsx   Anmeldung / Registrierung
     pages/Profile.jsx      Profil + Platzhalter für Strava/Komoot/Garmin
     pages/Admin.jsx        Nutzer- + Fund-Pin-Verwaltung (nur Admins)
     AuthContext.jsx         Login-Status, JWT-Handling
-    components/            Navbar, MapPicker (Leaflet), CategoryPicker, ...
+    components/            Navbar, FoundItemsMap, MapPicker (Leaflet),
+                            CategoryPicker, ProgressBar, TopLoadingBar, ...
     api.js                 Backend-API-Client
   Dockerfile               Multi-Stage-Build (Vite-Build -> Nginx)
   nginx.conf               Statisches Hosting + Proxy zu /api, /uploads
@@ -142,10 +138,9 @@ docker compose down
 | Methode | Pfad                  | Zweck                                      |
 |---------|-----------------------|---------------------------------------------|
 | GET     | `/api/categories`     | Verfügbare Kategorien                      |
-| GET     | `/api/found-items`    | Alle Fund-Pins (optional `?category=`)     |
+| GET     | `/api/found-items`    | Fund-Pins (optional `?category=`; mit `?lat=&lng=` inkl. `distance_m`, nächstgelegene zuerst; zusätzlich `?radius_m=` filtert serverseitig) |
 | POST    | `/api/found-items`    | Neuen Fund-Pin anlegen (multipart/form)    |
 | DELETE  | `/api/found-items/{id}` | Fund-Pin löschen (nur Admin)             |
-| POST    | `/api/match`          | GPX-Datei + Kategorie -> Treffer im 30m-Radius |
 | POST    | `/api/auth/register`  | Registrieren (erstes Konto wird Admin)     |
 | POST    | `/api/auth/login`     | Login, gibt JWT zurück                     |
 | GET     | `/api/auth/me`        | Eigenes Profil (Login erforderlich)        |
@@ -159,21 +154,22 @@ Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 
 ## Stand des Prototyps
 
-- Matching-Logik prüft die Distanz zum nächsten Punkt **auf der Strecke**
-  (Punkt-zu-Segment-Projektion), nicht nur zu den aufgezeichneten
-  GPS-Vertices - so werden auch Funde erkannt, die zwischen zwei
-  GPS-Fixes liegen. Verifiziert mit gezielten Test-GPX-Dateien (dichte
-  und sparsame Tracks, mehrere Kategorien, ISO-8859-1-kodierte Exporte).
-- GPX-Parsing ist robust gegen unterschiedliche Zeichenkodierungen
-  (UTF-8, UTF-8-BOM, ISO-8859-1/Windows-1252 wie bei älteren
-  Garmin-Exporten) sowie gegen leere Dateien, falsche Dateiendungen und
-  ungültige Radius-Werte (klare deutschsprachige Fehlermeldungen).
+- Kein Routen-/GPX-Abgleich mehr - Fundstücke sind der Ausgangspunkt.
+  `GET /api/found-items?lat=&lng=` berechnet die Haversine-Distanz jedes
+  Pins zur übergebenen Position serverseitig und liefert sie sortiert
+  zurück; das Frontend zeigt daraus direkt den "X in deiner Nähe"-Zähler
+  und die Kartenpins - ganz ohne separate Matching-Logik.
+- Uploads (Fund-Foto) laufen über `XMLHttpRequest` mit echtem
+  Byte-Fortschritt, angezeigt als Prozent-Ladebalken; beim ersten Laden der
+  Karte (Standortabfrage + Fund-Pins) läuft oben ein schlanker
+  Fortschrittsbalken, damit sichtbar ist, dass die App arbeitet.
 - Fotos werden lokal unter `backend/uploads/` gespeichert und über
   `/uploads/...` ausgeliefert.
 - Login/Registrierung mit gehashten Passwörtern (bcrypt) und JWT-Sessions;
-  Rollenmodell "user"/"admin". Strava-/Komoot-/Garmin-Verknüpfung ist als
-  Datenfeld + UI vorbereitet, aber noch ohne echten OAuth-Flow (manuelle
-  ID-Eingabe als Platzhalter).
-- Nächste Schritte für einen produktiven Einsatz: PostgreSQL+PostGIS, echte
-  OAuth-Anbindung für Strava/Komoot/Garmin, Passwort-Reset,
-  Push-Benachrichtigungen, Rate-Limiting für Uploads/Login.
+  Rollenmodell "user"/"admin" - normale Registrierungen sind nie Admin.
+  Strava-/Komoot-/Garmin-Verknüpfung ist als Datenfeld + UI vorbereitet,
+  aber noch ohne echten OAuth-Flow (manuelle ID-Eingabe als Platzhalter).
+- Nächste Schritte für einen produktiven Einsatz: PostgreSQL+PostGIS für
+  effizientere Umkreissuche bei vielen Fund-Pins, echte OAuth-Anbindung für
+  Strava/Komoot/Garmin, Passwort-Reset, Push-Benachrichtigungen,
+  Rate-Limiting für Uploads/Login.

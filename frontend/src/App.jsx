@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import FinderMode from "./pages/FinderMode.jsx";
-import SeekerMode from "./pages/SeekerMode.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import Profile from "./pages/Profile.jsx";
@@ -42,7 +41,6 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/gefunden" element={<FinderMode />} />
-          <Route path="/verloren" element={<SeekerMode />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registrieren" element={<Register />} />
           <Route

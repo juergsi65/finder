@@ -2,8 +2,7 @@ import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import "../leafletIcons.js";
 import { pendingIcon } from "../leafletIcons.js";
-
-const DEFAULT_CENTER = [48.1372, 11.5754]; // Munich, just as a sensible default
+import { DEFAULT_CENTER } from "../constants.js";
 
 function ClickHandler({ onPick }) {
   useMapEvents({
@@ -51,5 +50,3 @@ export default function MapPicker({ pin, onPick, center, flyToTarget, children }
     </MapContainer>
   );
 }
-
-export { DEFAULT_CENTER };

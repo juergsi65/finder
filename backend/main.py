@@ -14,7 +14,6 @@ from database import Base, engine, get_db
 from models import FoundItem, User
 from schemas import (
     FoundItemOut,
-    MatchResponse,
     CATEGORIES,
     UserCreate,
     UserOut,
@@ -28,17 +27,11 @@ from auth import (
     get_current_user,
     require_admin,
 )
-from gpx_matching import (
-    extract_track_points,
-    find_matches,
-    downsample_track,
-    track_time_range,
-    GpxParseError,
-    DEFAULT_RADIUS_M,
-    MAX_RADIUS_M,
-)
+from geo import haversine_distance_m
 
 logger = logging.getLogger("trailfound")
+
+MAX_NEARBY_RADIUS_M = 500_000.0  # 500km - generous upper bound, just sanity-checks input
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -72,11 +65,47 @@ def get_categories():
 
 
 @app.get("/api/found-items", response_model=List[FoundItemOut])
-def list_found_items(category: Optional[str] = None, db: Session = Depends(get_db)):
+def list_found_items(
+    category: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius_m: Optional[float] = None,
+    db: Session = Depends(get_db),
+):
+    """List found-item pins for the map.
+
+    Found items are the whole app now - no route/GPX matching. When `lat`/
+    `lng` are given (the browsing user's own position), every item is
+    annotated with `distance_m` and the list is sorted nearest-first; pass
+    `radius_m` too to only return items within that radius (e.g. to power
+    a fast "X Gegenstände in deiner Nähe" count). Without `lat`/`lng`, all
+    items are returned newest-first as before.
+    """
+    if radius_m is not None and (radius_m <= 0 or radius_m > MAX_NEARBY_RADIUS_M):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Radius muss zwischen 1 und {int(MAX_NEARBY_RADIUS_M)} Metern liegen.",
+        )
+
     query = db.query(FoundItem)
     if category:
         query = query.filter(FoundItem.category == category)
-    return query.order_by(FoundItem.created_at.desc()).all()
+    items = query.order_by(FoundItem.created_at.desc()).all()
+
+    if lat is None or lng is None:
+        return items
+
+    annotated = []
+    for item in items:
+        distance = haversine_distance_m(lat, lng, item.lat, item.lng)
+        if radius_m is not None and distance > radius_m:
+            continue
+        out = FoundItemOut.model_validate(item)
+        out.distance_m = round(distance, 1)
+        annotated.append(out)
+
+    annotated.sort(key=lambda i: i.distance_m)
+    return annotated
 
 
 @app.post("/api/found-items", response_model=FoundItemOut)
@@ -125,79 +154,6 @@ def delete_found_item(
     db.delete(item)
     db.commit()
     return {"ok": True}
-
-
-@app.post("/api/match", response_model=MatchResponse)
-async def match_gpx(
-    category: str = Form(...),
-    radius_m: float = Form(DEFAULT_RADIUS_M),
-    gpx_file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    """Core matching prototype endpoint.
-
-    Parses the uploaded GPX track and checks every found-item pin of the
-    given category against the whole route - not just the recorded GPS
-    vertices, but the path *between* them too - using a perpendicular
-    point-to-segment distance. Any pin within `radius_m` meters of the
-    route is returned as a match.
-
-    Every failure mode (bad category, bad radius, wrong file type, empty
-    file, unparseable/corrupt GPX, GPX with no usable coordinates) is
-    mapped to a 400 with a clear, German error message - this endpoint
-    should never surface a raw traceback or an unhandled 500 for bad
-    input.
-    """
-    if category not in CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
-
-    if radius_m <= 0 or radius_m > MAX_RADIUS_M:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Radius muss zwischen 1 und {int(MAX_RADIUS_M)} Metern liegen.",
-        )
-
-    if gpx_file.filename and not gpx_file.filename.lower().endswith(".gpx"):
-        raise HTTPException(status_code=400, detail="Bitte eine .gpx-Datei hochladen.")
-
-    try:
-        raw = await gpx_file.read()
-    except Exception as exc:  # noqa: BLE001 - upload stream errors -> clean 400, not 500
-        logger.warning("Konnte hochgeladene Datei nicht lesen: %s", exc)
-        raise HTTPException(status_code=400, detail="Die Datei konnte nicht gelesen werden.")
-
-    if not raw:
-        raise HTTPException(status_code=400, detail="Die hochgeladene Datei ist leer.")
-
-    try:
-        track_points = extract_track_points(raw)
-    except GpxParseError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:  # noqa: BLE001 - last-resort safety net, never a bare 500
-        logger.exception("Unerwarteter Fehler beim GPX-Parsing")
-        raise HTTPException(status_code=400, detail=f"GPX konnte nicht verarbeitet werden: {exc}")
-
-    if not track_points:
-        raise HTTPException(status_code=400, detail="Die GPX-Datei enthält keine Koordinaten.")
-
-    try:
-        found_items = db.query(FoundItem).filter(FoundItem.category == category).all()
-        matches = find_matches(track_points, found_items, radius_m=radius_m)
-        preview = downsample_track(track_points)
-        started_at, finished_at = track_time_range(track_points)
-    except Exception as exc:  # noqa: BLE001 - matching itself must not 500 either
-        logger.exception("Unerwarteter Fehler beim Routenabgleich")
-        raise HTTPException(status_code=400, detail=f"Routenabgleich fehlgeschlagen: {exc}")
-
-    return MatchResponse(
-        matched=len(matches) > 0,
-        track_points_checked=len(track_points),
-        radius_m=radius_m,
-        matches=matches,
-        track_preview=[{"lat": p.lat, "lng": p.lng} for p in preview],
-        track_started_at=started_at,
-        track_finished_at=finished_at,
-    )
 
 
 # --- Auth ---------------------------------------------------------------

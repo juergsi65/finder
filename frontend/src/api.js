@@ -15,9 +15,7 @@ function authHeaders() {
 // FastAPI returns `detail` as a plain string for our own HTTPExceptions, but
 // as an array of {msg, loc, ...} for pydantic validation errors (422) - this
 // normalizes both into a single readable message.
-async function extractErrorMessage(res, fallback) {
-  const body = await res.json().catch(() => ({}));
-  const detail = body.detail;
+function detailToMessage(detail, fallback) {
   if (!detail) return fallback;
   if (typeof detail === "string") return detail;
   if (Array.isArray(detail)) {
@@ -26,20 +24,44 @@ async function extractErrorMessage(res, fallback) {
   return fallback;
 }
 
+async function extractErrorMessage(res, fallback) {
+  const body = await res.json().catch(() => ({}));
+  return detailToMessage(body.detail, fallback);
+}
+
 export async function getCategories() {
   const res = await fetch("/api/categories");
   if (!res.ok) throw new Error("Kategorien konnten nicht geladen werden");
   return res.json();
 }
 
-export async function getFoundItems(category) {
-  const url = category ? `/api/found-items?category=${encodeURIComponent(category)}` : "/api/found-items";
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Fund-Pins konnten nicht geladen werden");
+/**
+ * Found-item pins for the map. Pass `lat`/`lng` (the browsing user's own
+ * position) to get each item annotated with `distance_m` and sorted
+ * nearest-first - powers both the map and the "X Gegenstände in deiner
+ * Nähe" count. `radiusM` additionally filters server-side.
+ */
+export async function getFoundItems({ category, lat, lng, radiusM } = {}) {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (lat != null && lng != null) {
+    params.set("lat", lat);
+    params.set("lng", lng);
+  }
+  if (radiusM != null) params.set("radius_m", radiusM);
+
+  const qs = params.toString();
+  const res = await fetch(qs ? `/api/found-items?${qs}` : "/api/found-items");
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Fund-Pins konnten nicht geladen werden"));
   return res.json();
 }
 
-export async function createFoundItem({ category, description, lat, lng, photo }) {
+/**
+ * Reports a found item. Uses XMLHttpRequest (not fetch) specifically to get
+ * real upload-progress events for the photo, reported via `onProgress`
+ * (0-100) so the UI can show a percentage bar instead of a plain spinner.
+ */
+export function createFoundItem({ category, description, lat, lng, photo, onProgress }) {
   const form = new FormData();
   form.append("category", category);
   if (description) form.append("description", description);
@@ -47,30 +69,40 @@ export async function createFoundItem({ category, description, lat, lng, photo }
   form.append("lng", lng);
   if (photo) form.append("photo", photo);
 
-  const res = await fetch("/api/found-items", { method: "POST", body: form });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res, "Fund konnte nicht gespeichert werden"));
-  }
-  return res.json();
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/found-items");
+
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      let body = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON response - fall through to status-based handling below
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress?.(100);
+        resolve(body);
+      } else {
+        reject(new Error(detailToMessage(body.detail, "Fund konnte nicht gespeichert werden")));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Netzwerkfehler beim Hochladen. Bitte erneut versuchen."));
+    xhr.send(form);
+  });
 }
 
 export async function deleteFoundItem(id) {
   const res = await fetch(`/api/found-items/${id}`, { method: "DELETE", headers: authHeaders() });
   if (!res.ok) {
     throw new Error(await extractErrorMessage(res, "Fund konnte nicht gelöscht werden"));
-  }
-  return res.json();
-}
-
-export async function matchGpx({ category, gpxFile, radiusM = 30 }) {
-  const form = new FormData();
-  form.append("category", category);
-  form.append("radius_m", radiusM);
-  form.append("gpx_file", gpxFile);
-
-  const res = await fetch("/api/match", { method: "POST", body: form });
-  if (!res.ok) {
-    throw new Error(await extractErrorMessage(res, "Abgleich fehlgeschlagen"));
   }
   return res.json();
 }

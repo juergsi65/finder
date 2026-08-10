@@ -3,6 +3,7 @@ import { Marker, Popup } from "react-leaflet";
 import MapPicker from "../components/MapPicker.jsx";
 import CategoryPicker from "../components/CategoryPicker.jsx";
 import PhotoDropzone from "../components/PhotoDropzone.jsx";
+import ProgressBar from "../components/ProgressBar.jsx";
 import Spinner from "../components/Spinner.jsx";
 import { getCategories, getFoundItems, createFoundItem } from "../api.js";
 
@@ -15,6 +16,7 @@ export default function FinderMode() {
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -61,6 +63,7 @@ export default function FinderMode() {
       return;
     }
     setSubmitting(true);
+    setUploadProgress(0);
     setError("");
     try {
       const created = await createFoundItem({
@@ -69,6 +72,7 @@ export default function FinderMode() {
         lat: pin.lat,
         lng: pin.lng,
         photo,
+        onProgress: setUploadProgress,
       });
       setExistingItems((prev) => [created, ...prev]);
       setSuccess(true);
@@ -80,6 +84,7 @@ export default function FinderMode() {
       setError(err.message);
     } finally {
       setSubmitting(false);
+      setUploadProgress(0);
     }
   }
 
@@ -154,6 +159,8 @@ export default function FinderMode() {
             ✅ Fund gespeichert - danke, dass du hilfst!
           </p>
         )}
+
+        {submitting && <ProgressBar percent={uploadProgress} label={photo ? "Foto wird hochgeladen" : "Wird gespeichert"} />}
 
         <button
           type="submit"
