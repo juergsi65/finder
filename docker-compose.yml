@@ -10,6 +10,24 @@ services:
       # compose file (JWT_SECRET=...) before deploying for real - anyone
       # who knows this value can forge valid login tokens.
       - JWT_SECRET=${JWT_SECRET:-please-change-me-in-production}
+      # Optional Strava OAuth add-on ("did you lose something on today's
+      # activity?"). Leave unset to keep it disabled (the app degrades
+      # gracefully - the connect button just stays disabled). Register a
+      # free app at https://www.strava.com/settings/api to get these.
+      - STRAVA_CLIENT_ID=${STRAVA_CLIENT_ID:-}
+      - STRAVA_CLIENT_SECRET=${STRAVA_CLIENT_SECRET:-}
+      - STRAVA_REDIRECT_URI=${STRAVA_REDIRECT_URI:-http://localhost:8000/api/strava/callback}
+      # Used to build links back into the app (Strava OAuth redirect target,
+      # email notification links). Set to your real domain in production.
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
+      # Optional SMTP relay for the internal messaging system's email
+      # notifications. Without these, messaging still works in-app; the
+      # other party just won't get an email nudge.
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM=${SMTP_FROM:-TrailFound <no-reply@trailfound.local>}
     volumes:
       - backend_data:/app/data
       - backend_uploads:/app/uploads

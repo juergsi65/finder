@@ -1,10 +1,13 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
+import LanguageSwitcher from "./LanguageSwitcher.jsx";
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, loading, logout } = useAuth();
+  const { t } = useTranslation();
   const isHome = location.pathname === "/";
 
   function handleLogout() {
@@ -13,25 +16,34 @@ export default function Navbar() {
   }
 
   return (
-    <header className="bg-trail-600 text-white px-4 py-3 flex items-center gap-2 shadow-sm shrink-0">
+    <header className="bg-trail-600 text-white px-3 py-2.5 flex items-center gap-1.5 shadow-sm shrink-0">
       {!isHome && (
-        <Link to="/" className="text-white/90 hover:text-white text-xl leading-none px-1" aria-label="Zurück">
+        <Link to="/" className="text-white/90 hover:text-white text-xl leading-none px-1" aria-label={t("common.back")}>
           ←
         </Link>
       )}
-      <Link to="/" className="font-bold text-lg tracking-tight flex items-center gap-1.5">
-        <span aria-hidden>🧭</span> TrailFound
+      <Link to="/" className="font-bold text-base tracking-tight flex items-center gap-1.5 shrink-0">
+        <span aria-hidden>🧭</span> {t("appName")}
       </Link>
 
-      <div className="ml-auto flex items-center gap-1.5 text-sm shrink-0">
+      <div className="ml-auto flex items-center gap-1 text-sm shrink-0">
+        <LanguageSwitcher />
         {loading ? null : user ? (
           <>
+            <Link
+              to="/nachrichten"
+              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
+              aria-label={t("nav.messages")}
+              title={t("nav.messages")}
+            >
+              💬
+            </Link>
             {user.role === "admin" && (
               <Link
                 to="/admin"
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
-                aria-label="Admin"
-                title="Admin"
+                aria-label={t("nav.admin")}
+                title={t("nav.admin")}
               >
                 👑
               </Link>
@@ -39,7 +51,7 @@ export default function Navbar() {
             <Link
               to="/profil"
               className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
-              aria-label={`Profil (${user.email})`}
+              aria-label={`${t("nav.profile")} (${user.email})`}
               title={user.email}
             >
               👤
@@ -48,22 +60,22 @@ export default function Navbar() {
               type="button"
               onClick={handleLogout}
               className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-base"
-              aria-label="Abmelden"
-              title="Abmelden"
+              aria-label={t("nav.logout")}
+              title={t("nav.logout")}
             >
               ⏻
             </button>
           </>
         ) : (
           <>
-            <Link to="/login" className="text-white/90 hover:text-white font-medium px-1">
-              Anmelden
+            <Link to="/login" className="text-white/90 hover:text-white font-medium px-1.5 whitespace-nowrap">
+              {t("nav.login")}
             </Link>
             <Link
               to="/registrieren"
-              className="bg-white text-trail-700 font-semibold rounded-full px-3 py-1 hover:bg-trail-50 whitespace-nowrap"
+              className="bg-white text-trail-700 font-semibold rounded-full px-2.5 py-1 hover:bg-trail-50 whitespace-nowrap"
             >
-              Registrieren
+              {t("nav.register")}
             </Link>
           </>
         )}

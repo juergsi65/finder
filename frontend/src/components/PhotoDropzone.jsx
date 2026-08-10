@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
 
 /**
  * Drag-and-drop (+ tap-to-browse / camera-capture) photo upload zone with
  * an inline thumbnail preview once a file is chosen.
  */
 export default function PhotoDropzone({ file, onFileSelected }) {
+  const { t } = useTranslation();
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -60,12 +62,12 @@ export default function PhotoDropzone({ file, onFileSelected }) {
         <div className="flex items-center gap-3 text-left">
           <img
             src={previewUrl}
-            alt="Vorschau"
+            alt={t("common.preview")}
             className="w-14 h-14 object-cover rounded-lg shrink-0 border border-gray-200"
           />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-gray-800 truncate">{file.name}</p>
-            <p className="text-xs text-gray-400">Foto ausgewählt</p>
+            <p className="text-xs text-gray-400">{t("finder.photoSelected")}</p>
           </div>
           <button
             type="button"
@@ -74,7 +76,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
               onFileSelected(null);
             }}
             className="text-gray-400 hover:text-red-500 text-lg shrink-0 px-2 py-1"
-            aria-label="Foto entfernen"
+            aria-label={t("common.removePhoto")}
           >
             ✕
           </button>
@@ -84,7 +86,7 @@ export default function PhotoDropzone({ file, onFileSelected }) {
           <div className="text-2xl mb-1" aria-hidden>
             📷
           </div>
-          <p className="text-sm text-gray-600">Foto hinzufügen (optional)</p>
+          <p className="text-sm text-gray-600">{t("finder.photoHint")}</p>
         </>
       )}
     </div>

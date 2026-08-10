@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from "re
 import "../leafletIcons.js";
 import { DEFAULT_CENTER } from "../constants.js";
 import { categoryIcon } from "../categoryIcons.js";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
+import ContactFinderButton from "./ContactFinderButton.jsx";
 
 function formatDistance(meters) {
   if (meters == null) return null;
@@ -26,6 +28,8 @@ function FlyTo({ target, zoom }) {
  * relative to.
  */
 export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
+  const { t } = useTranslation();
+
   return (
     <MapContainer center={center || DEFAULT_CENTER} zoom={13} className="w-full h-full">
       <TileLayer
@@ -44,22 +48,20 @@ export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
 
       {items.map((item) => (
         <Marker key={item.id} position={[item.lat, item.lng]}>
-          <Popup>
-            <div className="min-w-[10rem]">
+          <Popup minWidth={200}>
+            <div className="min-w-[11rem] space-y-1.5">
               <strong>
-                {categoryIcon(item.category)} {item.category}
+                {categoryIcon(item.category)} {item.title}
               </strong>
-              {item.description && <div className="mt-0.5">{item.description}</div>}
-              {typeof item.distance_m === "number" && (
-                <div className="text-gray-500 mt-0.5">{formatDistance(item.distance_m)} entfernt</div>
-              )}
+              {item.description && <div>{item.description}</div>}
+              <div className="text-gray-500 text-xs">
+                {t("home.foundOn")} {item.found_date}
+                {typeof item.distance_m === "number" && ` - ${formatDistance(item.distance_m)} ${t("home.away")}`}
+              </div>
               {item.photo_path && (
-                <img
-                  src={item.photo_path}
-                  alt={item.category}
-                  className="mt-1.5 rounded-md max-h-28 w-full object-cover"
-                />
+                <img src={item.photo_path} alt={item.title} className="rounded-md max-h-28 w-full object-cover" />
               )}
+              <ContactFinderButton itemId={item.id} className="pt-1" />
             </div>
           </Popup>
         </Marker>

@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
 import Spinner from "../components/Spinner.jsx";
 
 export default function Register() {
   const { register } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState("user");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,16 +20,16 @@ export default function Register() {
     e.preventDefault();
     setError("");
     if (password.length < 8) {
-      setError("Passwort muss mindestens 8 Zeichen lang sein.");
+      setError(t("auth.passwordTooShort"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Die Passwörter stimmen nicht überein.");
+      setError(t("auth.passwordMismatch"));
       return;
     }
     setSubmitting(true);
     try {
-      await register(email, password);
+      await register({ email, password, role, displayName: role === "verein" ? displayName : undefined });
       navigate("/", { replace: true });
     } catch (err) {
       setError(err.message);
@@ -35,13 +39,13 @@ export default function Register() {
   }
 
   return (
-    <div className="h-full flex flex-col items-center justify-center px-6 bg-gradient-to-b from-trail-50 to-white">
-      <div className="w-full max-w-sm">
+    <div className="h-full flex flex-col items-center justify-center px-6 bg-gradient-to-b from-trail-50 to-white overflow-y-auto">
+      <div className="w-full max-w-sm py-8">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2" aria-hidden>
             📝
           </div>
-          <h1 className="text-xl font-bold text-gray-800">Konto erstellen</h1>
+          <h1 className="text-xl font-bold text-gray-800">{t("auth.registerHeading")}</h1>
         </div>
 
         <form
@@ -49,7 +53,49 @@ export default function Register() {
           className="space-y-4 bg-white p-5 rounded-2xl shadow border border-gray-100"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("auth.accountType")}</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setRole("user")}
+                className={`rounded-xl border py-2.5 px-2 text-sm font-medium transition ${
+                  role === "user"
+                    ? "border-trail-600 bg-trail-50 text-trail-700 ring-2 ring-trail-500"
+                    : "border-gray-200 text-gray-600 hover:border-trail-300"
+                }`}
+              >
+                🧑 {t("auth.accountTypeUser")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("verein")}
+                className={`rounded-xl border py-2.5 px-2 text-sm font-medium transition ${
+                  role === "verein"
+                    ? "border-trail-600 bg-trail-50 text-trail-700 ring-2 ring-trail-500"
+                    : "border-gray-200 text-gray-600 hover:border-trail-300"
+                }`}
+              >
+                🏔️ {t("auth.accountTypeVerein")}
+              </button>
+            </div>
+          </div>
+
+          {role === "verein" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.clubName")}</label>
+              <input
+                type="text"
+                required
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder={t("auth.clubNamePlaceholder")}
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.email")}</label>
             <input
               type="email"
               required
@@ -60,7 +106,7 @@ export default function Register() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.password")}</label>
             <input
               type="password"
               required
@@ -70,10 +116,10 @@ export default function Register() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full border border-gray-300 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-trail-500 focus:border-transparent"
             />
-            <p className="text-xs text-gray-400 mt-1">Mindestens 8 Zeichen</p>
+            <p className="text-xs text-gray-400 mt-1">{t("auth.passwordHint")}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort bestätigen</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.confirmPassword")}</label>
             <input
               type="password"
               required
@@ -96,14 +142,14 @@ export default function Register() {
             className="w-full bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {submitting && <Spinner />}
-            {submitting ? "Konto wird erstellt..." : "Registrieren"}
+            {submitting ? t("auth.registering") : t("auth.submitRegister")}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-4">
-          Schon ein Konto?{" "}
+          {t("auth.hasAccount")}{" "}
           <Link to="/login" className="text-trail-700 font-semibold">
-            Anmelden
+            {t("auth.toLogin")}
           </Link>
         </p>
       </div>

@@ -1,62 +1,88 @@
 # TrailFound 🧭
 
-Mobiler Web-App-Prototyp (MVP), der Sportler:innen hilft, verlorene Ausrüstung
-(Trinkflaschen, Radcomputer, Pumpen, Brillen, ...) wiederzufinden - Fundstücke
-sind feste GPS-Punkte auf einer interaktiven Karte, kein Routen-Upload nötig.
+Mobiler Web-App-Prototyp, der Sportler:innen hilft, verlorene Ausrüstung
+(Trinkflaschen, Radcomputer, Pumpen, Brillen, ...) wiederzufinden - über eine
+interaktive Karte mit Fund-Pins, eine GPX-/Strava-gestützte Routensuche und
+ein datenschutzfreundliches internes Nachrichtensystem.
 
-## Funktionsweise
+## Funktionen im Überblick
 
-1. **Startseite = Karte.** Beim Öffnen der App fragt TrailFound den eigenen
-   Standort ab und zeigt sofort eine interaktive Karte mit allen gemeldeten
-   Fund-Pins, plus einer Zahl wie "3 Gegenstände in deiner Nähe (5 km)".
-   Kategorie-Chips ("Alle", 🧴 Trinkflasche, 📟 Radcomputer, ...) filtern die
-   Karte visuell.
-2. **Finder** tippt auf der Karte eine Fundstelle an (oder nutzt den
-   🎯-Standort-Button), wählt eine Kategorie über die Icon-Auswahl, lädt
-   optional ein Foto hoch (Drag & Drop oder Kamera, mit Fortschrittsbalken)
-   und beschreibt den Fund.
-3. **Konten:** Registrierung/Login (E-Mail + Passwort, JWT-Session). Das
-   **erste** registrierte Konto auf einer frischen Installation wird
-   automatisch zum Admin - alle weiteren Konten sind normale Nutzer:innen
-   ohne Admin-Rechte. Admins sehen unter `/admin` Nutzer- und
-   Fund-Pin-Verwaltung inkl. Löschfunktion. Im Profil (`/profil`) lässt sich
-   (als Platzhalter für spätere echte OAuth-Anbindung) eine
-   Strava-/Komoot-/Garmin-Konto-ID hinterlegen.
+1. **Startseite = Karte.** Beim Öffnen zeigt TrailFound sofort eine
+   interaktive Karte mit allen aktiven Fund-Pins in der Umgebung, plus einer
+   Zahl wie "5 Gegenstände in deiner Nähe (5 km)". Kategorie-Chips filtern
+   die Karte visuell.
+2. **Sprache:** Deutsch (Standard) und Englisch per Umschalter oben rechts,
+   inkl. nativer Formularvalidierung in der gewählten Sprache.
+3. **Konten & Rollen:** Registrierung/Login mit JWT-Session und
+   bcrypt-gehashten Passwörtern. Rollen: **Admin** (volle Moderation +
+   Nutzerverwaltung), **Standard-Nutzer** und **Verein/Gruppe** (z.B. lokale
+   Wandervereine, mit eigenem Anzeigenamen). Das erste registrierte Konto
+   wird automatisch Admin; alle weiteren Registrierungen sind niemals Admin.
+4. **Fund melden** (Login erforderlich): Pflichtfelder Titel, Kategorie und
+   Foto; Funddatum wird automatisch mit "heute" vorbelegt und ist editierbar;
+   Standort per Klick auf die Karte; Beschreibung optional. Der Foto-Upload
+   zeigt einen echten Prozent-Fortschrittsbalken.
+5. **Suchen:** Suchwort (z.B. "Garmin Uhr") + GPX-Track der eigenen Tour
+   hochladen - die App gleicht **jeden Meter der Route** (nicht nur die
+   aufgezeichneten GPS-Punkte) mit aktiven Fund-Pins ab und zeigt
+   ausschließlich Treffer im Umkreis. Während des Uploads läuft ein
+   Prozent-Fortschrittsbalken, während der serverseitigen Berechnung ein
+   Ladebalken. Alternative: die Umkreissuche direkt auf der Startseiten-Karte.
+6. **Strava-Add-on:** "Mit Strava verbinden" im Profil (echter OAuth-2.0-Flow)
+   und der Button "Hast du bei deiner heutigen Aktivität etwas verloren?" auf
+   der Such-Seite - ruft die heutige Strava-Aktivität ab und gleicht sie mit
+   derselben Logik wie ein GPX-Upload ab. Erfordert eine eigene
+   Strava-API-App (siehe unten) - ohne Konfiguration bleibt der Button sauber
+   deaktiviert.
+7. **Finder kontaktieren:** Internes Nachrichtensystem pro Fund-Pin. Weder
+   Sucher:in noch Finder:in sehen jemals die E-Mail-Adresse der Gegenseite -
+   der Server leitet neue Nachrichten optional per System-E-Mail weiter
+   (SMTP konfigurierbar).
+8. **Archiv:** Finder:in oder Admin können einen Fund als "erledigt" markieren
+   - er verschwindet sofort aus Karte und Suche, bleibt aber im
+   Admin-Archiv einsehbar und wiederherstellbar.
 
 ## Tech-Stack
 
 - **Frontend:** React + Vite, Tailwind CSS, React-Leaflet (OpenStreetMap),
-  React Router
-- **Backend:** Python + FastAPI, `bcrypt` fürs Passwort-Hashing, `PyJWT` für
-  Login-Sessions
-- **Datenbank:** SQLite (SQLAlchemy) - Fundstücke sind Lat/Lng-Punkte; die
-  "in deiner Nähe"-Distanz wird serverseitig per Haversine-Formel berechnet
-  (`GET /api/found-items?lat=&lng=`). Für den Umstieg auf PostgreSQL +
-  PostGIS müssten nur `database.py`/`main.py` angepasst werden.
+  React Router, eigenes leichtgewichtiges i18n (DE/EN)
+- **Backend:** Python + FastAPI, `gpxpy` fürs GPX-Parsing, `bcrypt` fürs
+  Passwort-Hashing, `PyJWT` für Login-Sessions, `httpx` für die Strava-API
+- **Datenbank:** SQLite (SQLAlchemy). Für den Umstieg auf PostgreSQL+PostGIS
+  müssten nur `database.py`/`main.py` angepasst werden.
 
 ## Projektstruktur
 
 ```
 backend/
-  main.py            FastAPI-App, REST-Endpunkte (inkl. Auth + Admin)
-  models.py          SQLAlchemy-Modelle: FoundItem, User
+  main.py            FastAPI-App, REST-Endpunkte (Found Items, Auth, Admin,
+                      Messaging)
+  models.py          SQLAlchemy-Modelle: User, FoundItem, Conversation, Message
   schemas.py         Pydantic-Schemas + Kategorien
   database.py        SQLite-Setup
   auth.py            Passwort-Hashing (bcrypt) + JWT-Erzeugung/-Prüfung
-  geo.py             Haversine-Distanzberechnung ("X in deiner Nähe")
+  geo.py             Punkt-zu-Strecke-Distanzberechnung
+  gpx_matching.py     GPX-Parsing + Matching-Logik (Kernstück der Suche)
+  search.py          Gemeinsame Matching-Logik für GPX-Upload & Strava
+  strava.py          Strava-OAuth-Connect + "heutige Aktivität"-Abgleich
+  email_utils.py     SMTP-Relay für Nachrichtenbenachrichtigungen (optional)
   requirements.txt
   uploads/           Hochgeladene Fotos (zur Laufzeit)
 
 frontend/
   src/
-    pages/Home.jsx         Startseite: interaktive Karte + Nähe-Zähler + Filter
-    pages/FinderMode.jsx   Fund melden: Pin setzen + Formular + Upload-Fortschritt
-    pages/Login.jsx, Register.jsx   Anmeldung / Registrierung
-    pages/Profile.jsx      Profil + Platzhalter für Strava/Komoot/Garmin
-    pages/Admin.jsx        Nutzer- + Fund-Pin-Verwaltung (nur Admins)
+    pages/Home.jsx         Startseite: Karte + Nähe-Zähler + Kategorie-Filter
+    pages/FinderMode.jsx   Fund melden (Titel/Kategorie/Foto Pflicht, Funddatum)
+    pages/Search.jsx       Suchwort + GPX-Upload + Strava-Add-on + Treffer
+    pages/Login.jsx, Register.jsx   Anmeldung / Registrierung (mit Rollenwahl)
+    pages/Profile.jsx      Profil, Strava-Connect, Komoot/Garmin-Platzhalter
+    pages/Admin.jsx        Nutzer- + Fund-Pin-Verwaltung inkl. Archiv (nur Admin)
+    pages/Messages.jsx, Conversation.jsx   Nachrichten-Postfach + Chat-Thread
     AuthContext.jsx         Login-Status, JWT-Handling
+    i18n/                   Sprachkontext + DE-/EN-Wörterbücher
     components/            Navbar, FoundItemsMap, MapPicker (Leaflet),
-                            CategoryPicker, ProgressBar, TopLoadingBar, ...
+                            CategoryPicker, ContactFinderButton, ProgressBar,
+                            TopLoadingBar, ...
     api.js                 Backend-API-Client
   Dockerfile               Multi-Stage-Build (Vite-Build -> Nginx)
   nginx.conf               Statisches Hosting + Proxy zu /api, /uploads
@@ -90,86 +116,97 @@ gleiches WLAN, `http://<Rechner-IP>:5173`). Der Vite-Dev-Server proxyt
 
 ## Mit Docker starten
 
-Für den Server-Betrieb reicht ein einziger Befehl im Hauptverzeichnis:
-
 ```bash
 docker compose up -d --build
 ```
 
-Das startet zwei Container:
+Startet **frontend** (Nginx, Port 80, proxyt `/api`+`/uploads` intern zum
+Backend) und **backend** (FastAPI/Uvicorn, Port 8000). SQLite-Datenbank
+(`backend_data`) und Fotos (`backend_uploads`) liegen in benannten
+Docker-Volumes und überleben Neustarts/Updates.
 
-- **frontend** - fertig gebautes React-App, ausgeliefert über Nginx auf
-  Port `80`. Nginx proxyt `/api` und `/uploads` intern an den Backend-Container,
-  das Frontend braucht also keine Konfiguration der Backend-URL.
-- **backend** - FastAPI/Uvicorn auf Port `8000`.
-
-SQLite-Datenbank (`backend_data`) und hochgeladene Fotos (`backend_uploads`)
-liegen in benannten Docker-Volumes und überleben damit Neustarts/Updates
-der Container.
-
-**Wichtig für den Produktivbetrieb:** Setze `JWT_SECRET` auf einen eigenen,
-zufälligen Wert (signiert die Login-Sessions), z.B. über eine `.env`-Datei
-neben `docker-compose.yml`:
+### Konfiguration (`.env`-Datei neben `docker-compose.yml`)
 
 ```bash
-echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
+# Pflicht für den Produktivbetrieb - signiert Login-Sessions
+JWT_SECRET=$(openssl rand -hex 32)
+
+# Optional: Strava-Add-on aktivieren (App unter
+# https://www.strava.com/settings/api registrieren; "Authorization Callback
+# Domain" auf diesen Server zeigen lassen)
+STRAVA_CLIENT_ID=...
+STRAVA_CLIENT_SECRET=...
+STRAVA_REDIRECT_URI=https://deine-domain.example/api/strava/callback
+FRONTEND_URL=https://deine-domain.example
+
+# Optional: E-Mail-Benachrichtigungen fürs Nachrichtensystem
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASSWORD=...
+SMTP_FROM="TrailFound <no-reply@deine-domain.example>"
 ```
 
-Ohne eigenen Wert läuft ein unsicherer Standardwert - für lokales Testen ok,
-für einen öffentlich erreichbaren Server nicht.
+Ohne `STRAVA_CLIENT_ID`/`SECRET` bleibt der Strava-Connect-Button im Profil
+sichtbar, aber sauber deaktiviert - kein Fehlerzustand. Ohne `SMTP_HOST`
+funktioniert das Nachrichtensystem weiterhin vollständig in der App, nur
+die zusätzliche E-Mail-Benachrichtigung entfällt.
 
-Danach ist die App unter `http://<Server-IP>` (Port 80) erreichbar, die
-API direkt unter `http://<Server-IP>:8000` (inkl. `/docs`).
-
-Update auf dem Server nach einem `git pull`:
+Update auf dem Server nach `git pull`:
 
 ```bash
 docker compose up -d --build
-```
-
-Container stoppen:
-
-```bash
-docker compose down
 ```
 
 ## API (Kurzüberblick)
 
-| Methode | Pfad                  | Zweck                                      |
-|---------|-----------------------|---------------------------------------------|
-| GET     | `/api/categories`     | Verfügbare Kategorien                      |
-| GET     | `/api/found-items`    | Fund-Pins (optional `?category=`; mit `?lat=&lng=` inkl. `distance_m`, nächstgelegene zuerst; zusätzlich `?radius_m=` filtert serverseitig) |
-| POST    | `/api/found-items`    | Neuen Fund-Pin anlegen (multipart/form)    |
-| DELETE  | `/api/found-items/{id}` | Fund-Pin löschen (nur Admin)             |
-| POST    | `/api/auth/register`  | Registrieren (erstes Konto wird Admin)     |
-| POST    | `/api/auth/login`     | Login, gibt JWT zurück                     |
-| GET     | `/api/auth/me`        | Eigenes Profil (Login erforderlich)        |
-| PATCH   | `/api/auth/me`        | Profil aktualisieren (Strava/Komoot/Garmin-ID) |
-| GET     | `/api/admin/users`    | Alle Nutzer (nur Admin)                    |
-| DELETE  | `/api/admin/users/{id}` | Nutzer löschen (nur Admin)               |
-| GET     | `/api/admin/stats`    | Systemweite Kennzahlen (nur Admin)         |
+| Methode | Pfad | Zweck |
+|---------|------|-------|
+| GET | `/api/categories` | Verfügbare Kategorien |
+| GET | `/api/found-items` | Aktive Fund-Pins (optional `?category=`, `?lat=&lng=` inkl. `distance_m` sortiert, `?radius_m=`) |
+| GET | `/api/found-items/{id}` | Einzelner Fund-Pin |
+| POST | `/api/found-items` | Fund melden (Login erforderlich; Titel/Kategorie/Foto Pflicht) |
+| PATCH | `/api/found-items/{id}` | Status ändern (aktiv/archiviert) - Melder:in oder Admin |
+| DELETE | `/api/found-items/{id}` | Fund-Pin löschen (nur Admin) |
+| POST | `/api/search/gpx` | Suchwort + Kategorie + GPX-Datei -> Treffer im Routenradius |
+| POST | `/api/auth/register` | Registrieren (Rolle user/verein; erstes Konto wird Admin) |
+| POST | `/api/auth/login` | Login, gibt JWT zurück |
+| GET/PATCH | `/api/auth/me` | Eigenes Profil lesen/aktualisieren |
+| GET | `/api/strava/status` | Strava konfiguriert?/verbunden? |
+| GET | `/api/strava/connect` | Strava-OAuth-URL (Login erforderlich) |
+| GET | `/api/strava/callback` | OAuth-Redirect-Ziel (von Strava aufgerufen) |
+| POST | `/api/strava/disconnect` | Strava-Verbindung trennen |
+| GET | `/api/strava/today-track` | Heutige Strava-Aktivität abgleichen |
+| POST | `/api/found-items/{id}/contact` | Unterhaltung mit Finder:in starten |
+| GET | `/api/conversations` | Eigene Unterhaltungen |
+| GET/POST | `/api/conversations/{id}` / `.../messages` | Thread lesen / antworten |
+| GET | `/api/admin/users`, `DELETE .../{id}` | Nutzerverwaltung (nur Admin) |
+| GET | `/api/admin/found-items?status_filter=` | Alle Fund-Pins inkl. Archiv (nur Admin) |
+| GET | `/api/admin/stats` | Systemweite Kennzahlen (nur Admin) |
 
 Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 `http://localhost:8000/docs`.
 
 ## Stand des Prototyps
 
-- Kein Routen-/GPX-Abgleich mehr - Fundstücke sind der Ausgangspunkt.
-  `GET /api/found-items?lat=&lng=` berechnet die Haversine-Distanz jedes
-  Pins zur übergebenen Position serverseitig und liefert sie sortiert
-  zurück; das Frontend zeigt daraus direkt den "X in deiner Nähe"-Zähler
-  und die Kartenpins - ganz ohne separate Matching-Logik.
-- Uploads (Fund-Foto) laufen über `XMLHttpRequest` mit echtem
-  Byte-Fortschritt, angezeigt als Prozent-Ladebalken; beim ersten Laden der
-  Karte (Standortabfrage + Fund-Pins) läuft oben ein schlanker
-  Fortschrittsbalken, damit sichtbar ist, dass die App arbeitet.
-- Fotos werden lokal unter `backend/uploads/` gespeichert und über
-  `/uploads/...` ausgeliefert.
-- Login/Registrierung mit gehashten Passwörtern (bcrypt) und JWT-Sessions;
-  Rollenmodell "user"/"admin" - normale Registrierungen sind nie Admin.
-  Strava-/Komoot-/Garmin-Verknüpfung ist als Datenfeld + UI vorbereitet,
+- Matching-Logik prüft die Distanz zum nächsten Punkt **auf der Strecke**
+  (Punkt-zu-Segment-Projektion), nicht nur zu den aufgezeichneten
+  GPS-Vertices. Die Suche kombiniert das mit einer Wort-für-Wort-Textsuche
+  über Titel/Beschreibung (z.B. findet "Garmin Uhr" auch "Garmin Fenix Uhr").
+- GPX-Parsing ist robust gegen unterschiedliche Zeichenkodierungen,
+  fehlerhafte/leere Dateien und ungültige Koordinaten (klare
+  deutschsprachige Fehlermeldungen, nie ein roher 500er).
+- Die Strava-Integration ist vollständig implementiert (OAuth-2.0-Flow,
+  Token-Refresh, Aktivitäts-/Stream-Abruf), **erfordert aber eine eigene
+  Strava-API-App** (Client-ID/Secret) - das gilt für jede Strava-Anbindung,
+  nicht nur für diesen Prototyp. Ohne Konfiguration bleibt die Funktion
+  sichtbar, aber inaktiv.
+- Das Nachrichtensystem speichert Unterhaltungen vollständig in der
+  Datenbank und funktioniert auch ganz ohne SMTP; die E-Mail-Benachrichtigung
+  ist ein optionales Extra.
+- Komoot-/Garmin-Verknüpfung im Profil ist als Datenfeld + UI vorbereitet,
   aber noch ohne echten OAuth-Flow (manuelle ID-Eingabe als Platzhalter).
 - Nächste Schritte für einen produktiven Einsatz: PostgreSQL+PostGIS für
   effizientere Umkreissuche bei vielen Fund-Pins, echte OAuth-Anbindung für
-  Strava/Komoot/Garmin, Passwort-Reset, Push-Benachrichtigungen,
-  Rate-Limiting für Uploads/Login.
+  Komoot/Garmin, Passwort-Reset, Push-Benachrichtigungen, Rate-Limiting für
+  Uploads/Login.

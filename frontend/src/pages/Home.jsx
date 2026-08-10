@@ -3,13 +3,15 @@ import { Link } from "react-router-dom";
 import FoundItemsMap from "../components/FoundItemsMap.jsx";
 import TopLoadingBar from "../components/TopLoadingBar.jsx";
 import Spinner from "../components/Spinner.jsx";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
 import { getCategories, getFoundItems } from "../api.js";
 import { categoryIcon } from "../categoryIcons.js";
 import { DEFAULT_CENTER, NEARBY_RADIUS_M } from "../constants.js";
 
-const ALL_CATEGORIES = "Alle";
+const ALL_CATEGORIES = "__all__";
 
 export default function Home() {
+  const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [userPos, setUserPos] = useState(null);
@@ -104,21 +106,18 @@ export default function Home() {
         <div className="bg-white/95 backdrop-blur rounded-2xl shadow-lg px-4 py-3">
           {locating ? (
             <p className="text-sm text-gray-500 flex items-center gap-2">
-              <Spinner className="w-4 h-4 text-trail-600" /> Standort wird ermittelt...
+              <Spinner className="w-4 h-4 text-trail-600" /> {t("home.locating")}
             </p>
           ) : userPos ? (
             <p className="text-sm text-gray-800">
-              <span className="text-lg font-bold text-trail-700">
-                {loadingItems ? "…" : nearbyCount}
-              </span>{" "}
-              Gegenstände in deiner Nähe{" "}
-              <span className="text-gray-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
+              <span className="text-lg font-bold text-trail-700">{loadingItems ? "…" : nearbyCount}</span>{" "}
+              {t("home.nearbyCount")} <span className="text-gray-400">({Math.round(NEARBY_RADIUS_M / 1000)} km)</span>
             </p>
           ) : (
             <p className="text-sm text-gray-600">
-              Standort nicht verfügbar - zeige{" "}
+              {t("home.noLocation")}{" "}
               <span className="font-semibold text-trail-700">{loadingItems ? "…" : items.length}</span>{" "}
-              gemeldete Fund-Pins.
+              {t("home.reportedPins")}
             </p>
           )}
           {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
@@ -129,7 +128,7 @@ export default function Home() {
             active={categoryFilter === ALL_CATEGORIES}
             onClick={() => setCategoryFilter(ALL_CATEGORIES)}
             icon="🗺️"
-            label="Alle"
+            label={t("home.all")}
           />
           {categories.map((c) => (
             <FilterChip
@@ -137,7 +136,7 @@ export default function Home() {
               active={categoryFilter === c}
               onClick={() => setCategoryFilter(c)}
               icon={categoryIcon(c)}
-              label={c}
+              label={t(`categories.${c}`)}
             />
           ))}
         </div>
@@ -148,16 +147,23 @@ export default function Home() {
         type="button"
         onClick={handleLocate}
         className="absolute bottom-24 right-3 z-[1000] bg-white shadow-lg rounded-full w-11 h-11 flex items-center justify-center text-lg border border-gray-200 active:scale-95 transition"
-        aria-label="Meinen Standort verwenden"
+        aria-label={t("home.locateMe")}
       >
         🎯
       </button>
 
       <Link
+        to="/suche"
+        className="absolute bottom-24 left-3 z-[1000] bg-white hover:bg-gray-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-lg px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+      >
+        <span aria-hidden>🔍</span> {t("nav.search")}
+      </Link>
+
+      <Link
         to="/gefunden"
         className="absolute bottom-5 right-3 z-[1000] bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-lg px-4 py-3 flex items-center gap-2 active:scale-95 transition"
       >
-        <span aria-hidden>📍</span> Fund melden
+        <span aria-hidden>📍</span> {t("home.reportButton")}
       </Link>
     </div>
   );
@@ -169,9 +175,7 @@ function FilterChip({ active, onClick, icon, label }) {
       type="button"
       onClick={onClick}
       className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border shadow-sm transition ${
-        active
-          ? "bg-trail-600 border-trail-600 text-white"
-          : "bg-white/95 border-gray-200 text-gray-700 hover:border-trail-300"
+        active ? "bg-trail-600 border-trail-600 text-white" : "bg-white/95 border-gray-200 text-gray-700 hover:border-trail-300"
       }`}
     >
       <span aria-hidden>{icon}</span>

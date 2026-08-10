@@ -5,13 +5,16 @@ import "leaflet/dist/leaflet.css";
 import "./index.css";
 import App from "./App.jsx";
 import { AuthProvider } from "./AuthContext.jsx";
+import { LanguageProvider } from "./i18n/LanguageContext.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

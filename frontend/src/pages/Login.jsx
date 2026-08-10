@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
 import Spinner from "../components/Spinner.jsx";
 
 export default function Login() {
   const { login } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState("");
@@ -27,13 +29,13 @@ export default function Login() {
   }
 
   return (
-    <div className="h-full flex flex-col items-center justify-center px-6 bg-gradient-to-b from-trail-50 to-white">
-      <div className="w-full max-w-sm">
+    <div className="h-full flex flex-col items-center justify-center px-6 bg-gradient-to-b from-trail-50 to-white overflow-y-auto">
+      <div className="w-full max-w-sm py-8">
         <div className="text-center mb-6">
           <div className="text-4xl mb-2" aria-hidden>
             🔐
           </div>
-          <h1 className="text-xl font-bold text-gray-800">Anmelden</h1>
+          <h1 className="text-xl font-bold text-gray-800">{t("auth.loginHeading")}</h1>
         </div>
 
         <form
@@ -41,7 +43,7 @@ export default function Login() {
           className="space-y-4 bg-white p-5 rounded-2xl shadow border border-gray-100"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.email")}</label>
             <input
               type="email"
               required
@@ -52,7 +54,7 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t("auth.password")}</label>
             <input
               type="password"
               required
@@ -75,14 +77,14 @@ export default function Login() {
             className="w-full bg-trail-600 disabled:bg-gray-300 hover:bg-trail-700 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
           >
             {submitting && <Spinner />}
-            {submitting ? "Anmelden..." : "Anmelden"}
+            {submitting ? t("auth.loggingIn") : t("auth.submitLogin")}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-4">
-          Noch kein Konto?{" "}
+          {t("auth.noAccount")}{" "}
           <Link to="/registrieren" className="text-trail-700 font-semibold">
-            Registrieren
+            {t("auth.toRegister")}
           </Link>
         </p>
       </div>

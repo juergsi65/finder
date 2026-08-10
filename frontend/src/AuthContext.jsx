@@ -37,12 +37,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(
-    async (email, password) => {
-      await apiRegister(email, password);
+    async ({ email, password, role, displayName }) => {
+      await apiRegister({ email, password, role, displayName });
       await login(email, password);
     },
     [login]
   );
+
+  const refreshUser = useCallback(async () => {
+    if (!token) return null;
+    const fresh = await apiGetMe();
+    setUser(fresh);
+    return fresh;
+  }, [token]);
 
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -58,7 +65,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

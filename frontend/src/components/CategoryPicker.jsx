@@ -1,17 +1,23 @@
 import { categoryIcon } from "../categoryIcons.js";
+import { useTranslation } from "../i18n/LanguageContext.jsx";
 
 /**
- * Icon-chip category selector, used in both Finder- and Seeker-Mode.
+ * Icon-chip category selector, used across Finder-Mode, Search and Home.
  * Behaves like a single-select (radio-group semantics) but is far easier
- * to hit with a thumb than a native <select> on mobile.
+ * to hit with a thumb than a native <select> on mobile. Category labels are
+ * translated (DE/EN); pass `allValue` to render one of the entries as a
+ * generic "all categories" chip instead of looking up a category icon/label.
  */
-export default function CategoryPicker({ categories, value, onChange, label }) {
+export default function CategoryPicker({ categories, value, onChange, label, allValue }) {
+  const { t } = useTranslation();
+
   return (
     <div>
       {label && <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>}
       <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={label}>
         {categories.map((c) => {
           const active = c === value;
+          const isAll = allValue != null && c === allValue;
           return (
             <button
               key={c}
@@ -26,9 +32,9 @@ export default function CategoryPicker({ categories, value, onChange, label }) {
               }`}
             >
               <span className="text-2xl" aria-hidden>
-                {categoryIcon(c)}
+                {isAll ? "🗺️" : categoryIcon(c)}
               </span>
-              {c}
+              {isAll ? t("home.all") : t(`categories.${c}`)}
             </button>
           );
         })}
