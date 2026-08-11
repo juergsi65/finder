@@ -369,3 +369,13 @@ export async function apiAdminListEmailLogs({ statusFilter, limit = 50 } = {}) {
   if (!res.ok) throw new Error(await extractErrorMessage(res, "E-Mail-Protokoll konnte nicht geladen werden"));
   return res.json();
 }
+
+export async function apiAdminSendTestEmail(to) {
+  const res = await fetch("/api/admin/email-logs/test", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ to }),
+  });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Test-E-Mail konnte nicht gesendet werden"));
+  return res.json();
+}

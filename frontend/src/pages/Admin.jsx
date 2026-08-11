@@ -9,6 +9,7 @@ import {
   apiAdminGetSettings,
   apiAdminUpdateSettings,
   apiAdminListEmailLogs,
+  apiAdminSendTestEmail,
   deleteFoundItem,
   setFoundItemStatus,
 } from "../api.js";
@@ -371,6 +372,10 @@ function ApiConfigPanel() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
+  const [testEmailTo, setTestEmailTo] = useState("");
+  const [testEmailSending, setTestEmailSending] = useState(false);
+  const [testEmailResult, setTestEmailResult] = useState(null);
+
   const [form, setForm] = useState({
     strava_client_id: "",
     strava_client_secret: "",
@@ -462,6 +467,19 @@ function ApiConfigPanel() {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSendTestEmail() {
+    setTestEmailSending(true);
+    setTestEmailResult(null);
+    try {
+      const res = await apiAdminSendTestEmail(testEmailTo);
+      setTestEmailResult({ ok: true, provider: res.provider });
+    } catch (err) {
+      setTestEmailResult({ ok: false, message: err.message });
+    } finally {
+      setTestEmailSending(false);
     }
   }
 
@@ -668,6 +686,46 @@ function ApiConfigPanel() {
             className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
           />
         </label>
+      </section>
+
+      {/* Test email - not part of the settings form (its own button, not a
+          submit), so an admin can verify live delivery without saving. */}
+      <section className="border border-slate-200 rounded-xl p-4 shadow-card space-y-3">
+        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+          <span aria-hidden>🧪</span> {t("admin.apiConfig.testEmailSection")}
+        </h3>
+        <p className="text-xs text-slate-400">{t("admin.apiConfig.testEmailHint")}</p>
+        <div className="flex gap-2">
+          <input
+            type="email"
+            value={testEmailTo}
+            onChange={(e) => {
+              setTestEmailTo(e.target.value);
+              setTestEmailResult(null);
+            }}
+            placeholder={t("admin.apiConfig.testEmailPlaceholder")}
+            className="flex-1 min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+          <button
+            type="button"
+            onClick={handleSendTestEmail}
+            disabled={testEmailSending || !testEmailTo}
+            className="shrink-0 bg-slate-800 hover:bg-slate-900 disabled:bg-slate-300 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center justify-center gap-2"
+          >
+            {testEmailSending && <Spinner className="w-4 h-4" />}
+            {testEmailSending ? t("admin.apiConfig.testEmailSending") : t("admin.apiConfig.testEmailSend")}
+          </button>
+        </div>
+        {testEmailResult &&
+          (testEmailResult.ok ? (
+            <p className="text-xs text-trail-700 bg-trail-50 border border-trail-100 rounded-lg px-3 py-2">
+              ✅ {t("admin.apiConfig.testEmailSuccess")} ({testEmailResult.provider})
+            </p>
+          ) : (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+              ❌ {testEmailResult.message}
+            </p>
+          ))}
       </section>
 
       <div className="flex items-center gap-3">

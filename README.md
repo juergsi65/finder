@@ -168,9 +168,42 @@ Versandversuch (erfolgreich oder fehlgeschlagen, inkl. Fehlermeldung von
 Resend/SMTP) wird zusätzlich in der `email_logs`-Tabelle protokolliert
 und ist über `GET /api/admin/email-logs` einsehbar.
 
+#### Fehlerbehebung: E-Mail-Versand (Resend) kommt nicht an
+
+**Häufigste Ursache mit Abstand: die Resend-Sandbox-Absenderadresse.**
+Solange `resend_from`/`RESEND_FROM` auf dem Default
+`onboarding@resend.dev` steht, liefert Resend E-Mails **nur an die
+E-Mail-Adresse deines eigenen Resend-Accounts** aus - an jeden anderen
+Empfänger (also praktisch jeden echten App-Nutzer) schlägt der Versand
+mit `403` fehl. Das betrifft *jede* frische Resend-Einrichtung, nicht nur
+diese App - es ist eine Resend-Plattformregel, kein Bug.
+
+Beheben:
+1. Eigene Domain unter <https://resend.com/domains> verifizieren
+   (DNS-Einträge setzen, Resend prüft automatisch).
+2. `resend_from` in **Admin → API-Konfiguration** auf eine Adresse dieser
+   Domain ändern, z. B. `TrailFound <no-reply@deine-domain.example>`.
+3. Sofort verifizieren: im selben Panel unter **Test-E-Mail senden** eine
+   echte Empfängeradresse eintragen und senden - Erfolg/Fehler kommt
+   synchron zurück, kein Warten auf einen echten User-Flow nötig. Jeder
+   Versuch landet außerdem im **E-Mail-Log**-Tab mit der exakten
+   Fehlermeldung von Resend.
+
+Per curl von außen (Admin-Token vorher per Login holen):
+
+```bash
+curl -X POST https://<domain>/api/admin/email-logs/test \
+  -H "Authorization: Bearer <admin-jwt>" -H "Content-Type: application/json" \
+  -d '{"to":"echte-empfänger-adresse@example.com"}'
+```
+
+Eine `502`-Antwort mit `"...Details im E-Mail-Log..."` heißt: Versand
+wurde versucht und ist fehlgeschlagen - der genaue Grund steht im
+Backend-Log (`docker compose logs backend`) und im E-Mail-Log-Tab.
+
 #### Fehlerbehebung: "Strava merkt sich die Verbindung nicht"
 
-Zwei Ursachen decken praktisch alle Fälle ab:
+Drei Ursachen decken praktisch alle Fälle ab:
 
 1. **`FRONTEND_URL` zeigt nicht auf die echte Domain.** Nach dem
    Token-Austausch leitet der Server den Browser auf
@@ -181,14 +214,23 @@ Zwei Ursachen decken praktisch alle Fälle ab:
    `docker compose exec backend env | grep FRONTEND_URL` muss die echte
    `https://...`-Domain zeigen.
 2. **`STRAVA_REDIRECT_URI` weicht vom registrierten Wert ab.** Muss exakt
-   `https://<domain>/api/strava/callback` sein (Pfad ist durch den
-   Router fix vorgegeben) - identisch in `.env`/Admin-Panel *und* im
-   Strava-App-Dashboard unter "Authorization Callback Domain".
+   `https://<domain>/api/strava/callback` sein (**nicht** `/api/auth/callback`
+   oder ähnliche Varianten - der Pfad ist durch den Router fix
+   vorgegeben) - identisch in `.env`/Admin-Panel *und* im
+   Strava-App-Dashboard. Admin → API-Konfiguration zeigt den aktuell
+   tatsächlich verwendeten Wert im Feld "Redirect-URI" an; bei jedem
+   Connect-Versuch loggt das Backend ihn zusätzlich
+   (`docker compose logs backend | grep Strava-Connect`).
+3. **"Authorization Callback Domain" in den Strava-App-Settings ist falsch
+   gesetzt.** Dort gehört **nur die nackte Domain** hin (z. B.
+   `finder.wsmronline.uk`), kein Schema und kein Pfad - trägt man dort
+   versehentlich die volle URL ein, lehnt Strava die Autorisierung schon
+   vor dem Redirect zurück zu dieser App ab.
 
-Bei jedem fehlgeschlagenen Token-Austausch/Refresh loggt das Backend jetzt
-den genauen Grund (`docker compose logs backend`) - Browser-Redirects
-können den Fehlergrund selbst nicht transportieren, daher steht die
-eigentliche Diagnose immer im Server-Log, nie nur im UI.
+Bei jedem fehlgeschlagenen Token-Austausch/Refresh loggt das Backend den
+genauen Grund (`docker compose logs backend`) - Browser-Redirects können
+den Fehlergrund selbst nicht transportieren, daher steht die eigentliche
+Diagnose immer im Server-Log, nie nur im UI.
 
 Update auf dem Server nach `git pull`:
 
@@ -227,6 +269,7 @@ docker compose up -d --build
 | GET | `/api/admin/stats` | Systemweite Kennzahlen (nur Admin) |
 | GET/PUT | `/api/admin/settings` | Strava/Resend/SMTP-Konfiguration lesen/ändern (nur Admin) |
 | GET | `/api/admin/email-logs?status_filter=&limit=` | Protokoll aller Versandversuche (nur Admin) |
+| POST | `/api/admin/email-logs/test` | Test-E-Mail synchron senden - `{"to": "..."}` (nur Admin) |
 
 Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 `http://localhost:8000/docs`.

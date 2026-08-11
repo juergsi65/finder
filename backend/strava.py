@@ -14,6 +14,7 @@ import datetime
 import logging
 import os
 from typing import Optional
+from urllib.parse import urlencode
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -86,15 +87,22 @@ def strava_connect(current_user: User = Depends(get_current_user), db: Session =
     attach the connection to.
     """
     config = _require_configured(db)
-    authorize_url = (
-        "https://www.strava.com/oauth/authorize"
-        f"?client_id={config.client_id}"
-        f"&redirect_uri={config.redirect_uri}"
-        "&response_type=code"
-        "&scope=activity:read_all"
-        f"&state={current_user.id}"
+    # urlencode (not an f-string) so redirect_uri/client_id can never
+    # corrupt the query string, however they're configured.
+    params = urlencode(
+        {
+            "client_id": config.client_id,
+            "redirect_uri": config.redirect_uri,
+            "response_type": "code",
+            "scope": "activity:read_all",
+            "state": current_user.id,
+        }
     )
-    return {"authorize_url": authorize_url}
+    logger.info(
+        "Strava-Connect für user_id %s - redirect_uri=%s (muss exakt so unter strava.com/settings/api registriert sein)",
+        current_user.id, config.redirect_uri,
+    )
+    return {"authorize_url": f"https://www.strava.com/oauth/authorize?{params}"}
 
 
 @router.get("/callback")
@@ -299,7 +307,27 @@ async def strava_today_track(
             headers=headers,
             params={"after": after_epoch, "per_page": 5},
         )
+        if activities_resp.status_code in (401, 403):
+            # The access token is fresh (we just refreshed it above), so a
+            # 401/403 here means Strava itself revoked/rejected it - most
+            # commonly the user revoked TrailFound's access from their
+            # Strava account settings, or the app's scope no longer covers
+            # activity:read_all. Clear the stale connection so the UI
+            # offers a clean reconnect instead of repeating this error.
+            logger.warning(
+                "Strava-Aktivitäten für user_id %s: HTTP %s - Verbindung wird zurückgesetzt: %s",
+                current_user.id, activities_resp.status_code, activities_resp.text[:500],
+            )
+            _clear_connection(current_user)
+            db.commit()
+            raise HTTPException(
+                status_code=400, detail="Strava-Verbindung ist nicht mehr gültig. Bitte im Profil neu verbinden."
+            )
         if activities_resp.status_code != 200:
+            logger.error(
+                "Strava-Aktivitäten für user_id %s fehlgeschlagen: HTTP %s - %s",
+                current_user.id, activities_resp.status_code, activities_resp.text[:500],
+            )
             raise HTTPException(status_code=502, detail="Aktivitäten konnten nicht von Strava geladen werden.")
 
         activities = activities_resp.json()
@@ -314,6 +342,10 @@ async def strava_today_track(
             params={"keys": "latlng", "key_by_type": "true"},
         )
         if streams_resp.status_code != 200:
+            logger.error(
+                "Strava-GPS-Streams für Aktivität %s (user_id %s) fehlgeschlagen: HTTP %s - %s",
+                activity.get("id"), current_user.id, streams_resp.status_code, streams_resp.text[:500],
+            )
             raise HTTPException(status_code=502, detail="GPS-Daten der Aktivität konnten nicht geladen werden.")
 
     latlng = (streams_resp.json().get("latlng") or {}).get("data") or []

@@ -39,6 +39,7 @@ from schemas import (
     AppSettingsOut,
     AppSettingsUpdate,
     EmailLogOut,
+    TestEmailRequest,
     LostItemReportOut,
 )
 from auth import (
@@ -51,7 +52,7 @@ from auth import (
 from geo import haversine_distance_m
 from gpx_matching import extract_track_points, GpxParseError, DEFAULT_RADIUS_M, MAX_RADIUS_M
 from search import build_search_response
-from email_utils import send_new_message_notification, send_radius_alert
+from email_utils import send_email, send_new_message_notification, send_radius_alert
 from settings_store import get_or_create_settings, get_strava_config, get_email_config
 import strava
 
@@ -816,3 +817,42 @@ def admin_list_email_logs(
     if status_filter:
         query = query.filter(EmailLog.status == status_filter)
     return query.order_by(EmailLog.created_at.desc()).limit(limit).all()
+
+
+@app.post("/api/admin/email-logs/test")
+def admin_send_test_email(
+    payload: TestEmailRequest,
+    admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Sends a one-off test email through whichever provider is currently
+    configured (Resend preferred, SMTP fallback) and returns the result
+    synchronously - lets an admin verify a live deploy actually delivers
+    without waiting for a real user to hit the messaging/alert flows.
+    Also the fastest way to catch Resend's sandbox-sender restriction
+    (onboarding@resend.dev can only deliver to the Resend account's own
+    signup address, 403s for everyone else) before a real user does."""
+    config = get_email_config(db)
+    if not config.is_configured:
+        raise HTTPException(
+            status_code=400,
+            detail="Kein E-Mail-Provider konfiguriert. Bitte zuerst Resend-API-Key oder SMTP unter Admin -> API-Konfiguration eintragen.",
+        )
+
+    ok = send_email(
+        config,
+        payload.to,
+        "TrailFound - Test-E-Mail",
+        (
+            f"Dies ist eine Test-E-Mail von TrailFound, ausgelöst von {admin.email} über "
+            f"Admin -> API-Konfiguration.\n\nProvider: {config.provider}\nAbsender: {config.from_address}\n\n"
+            "Wenn du das liest, funktioniert der E-Mail-Versand."
+        ),
+        db=db,
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=502,
+            detail="Test-E-Mail konnte nicht gesendet werden - genauer Fehler im E-Mail-Log (Admin -> E-Mail-Log).",
+        )
+    return {"ok": True, "provider": config.provider}

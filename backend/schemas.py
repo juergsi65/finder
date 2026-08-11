@@ -204,6 +204,25 @@ class EmailLogOut(BaseModel):
         from_attributes = True
 
 
+class TestEmailRequest(BaseModel):
+    """Body for POST /api/admin/email-logs/test - lets an admin verify a
+    live deploy's email provider (Resend or SMTP) actually delivers,
+    without needing a second real user account. Notably useful for
+    catching Resend's sandbox-sender restriction (onboarding@resend.dev
+    can only deliver to the Resend account's own signup address) before a
+    real user hits it."""
+
+    to: str
+
+    @field_validator("to")
+    @classmethod
+    def validate_to(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not EMAIL_RE.match(v):
+            raise ValueError("Ungültige E-Mail-Adresse")
+        return v
+
+
 class ProfileUpdate(BaseModel):
     display_name: Optional[str] = None
     komoot_id: Optional[str] = None
