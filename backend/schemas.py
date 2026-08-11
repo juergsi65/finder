@@ -243,6 +243,10 @@ class ConversationOut(BaseModel):
     other_participant_id: int
     created_at: Optional[datetime.datetime] = None
     messages: List[MessageOut] = []
+    # Messages from the *other* participant the viewer hasn't read yet -
+    # always 0 for a viewer with no participant role (e.g. an admin
+    # browsing for moderation, see main.py's _unread_count_for).
+    unread_count: int = 0
 
     class Config:
         from_attributes = True

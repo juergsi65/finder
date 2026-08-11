@@ -6,7 +6,7 @@ import LanguageSwitcher from "./LanguageSwitcher.jsx";
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, unreadCount } = useAuth();
   const { t } = useTranslation();
   const isHome = location.pathname === "/";
 
@@ -41,11 +41,19 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/nachrichten"
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
-                aria-label={t("nav.messages")}
+                className="relative w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/15 active:scale-90 text-base transition"
+                aria-label={unreadCount > 0 ? `${t("nav.messages")} (${unreadCount})` : t("nav.messages")}
                 title={t("nav.messages")}
               >
                 💬
+                {unreadCount > 0 && (
+                  <span
+                    className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none ring-2 ring-trail-700"
+                    aria-hidden
+                  >
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </Link>
               {user.role === "admin" && (
                 <Link

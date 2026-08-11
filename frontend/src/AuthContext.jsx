@@ -1,7 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { apiLogin, apiRegister, apiGetMe, apiUpdateProfile, setAuthToken } from "./api.js";
+import { apiLogin, apiRegister, apiGetMe, apiUpdateProfile, getUnreadCount, setAuthToken } from "./api.js";
 
 const STORAGE_KEY = "trailfound_token";
+// How often to poll for new unread messages while the app is open - a
+// balance between "badge feels live" and not hammering the API. Opening a
+// conversation also triggers an immediate refresh (see Conversation.jsx),
+// so this interval only matters for messages that arrive while the user
+// is elsewhere in the app.
+const UNREAD_POLL_MS = 30_000;
 
 const AuthContext = createContext(null);
 
@@ -9,6 +15,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_KEY));
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setAuthToken(token);
@@ -64,8 +71,32 @@ export function AuthProvider({ children }) {
     return updated;
   }, []);
 
+  const refreshUnreadCount = useCallback(async () => {
+    if (!token) return;
+    try {
+      const { unread_count } = await getUnreadCount();
+      setUnreadCount(unread_count);
+    } catch {
+      // Transient failure - the next poll (or the next manual trigger,
+      // e.g. opening a conversation) will pick it back up. Never let a
+      // failed badge refresh surface as an app-wide error.
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      setUnreadCount(0);
+      return;
+    }
+    refreshUnreadCount();
+    const interval = setInterval(refreshUnreadCount, UNREAD_POLL_MS);
+    return () => clearInterval(interval);
+  }, [token, refreshUnreadCount]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateProfile, refreshUser }}>
+    <AuthContext.Provider
+      value={{ user, loading, login, register, logout, updateProfile, refreshUser, unreadCount, refreshUnreadCount }}
+    >
       {children}
     </AuthContext.Provider>
   );

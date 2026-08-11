@@ -232,6 +232,14 @@ export async function getConversations() {
   return res.json();
 }
 
+/** Total unread-message count across all of the user's conversations -
+ * powers the navbar chat-bubble badge. */
+export async function getUnreadCount() {
+  const res = await fetch("/api/conversations/unread-count", { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Ungelesene Nachrichten konnten nicht geladen werden"));
+  return res.json();
+}
+
 export async function getConversation(id) {
   const res = await fetch(`/api/conversations/${id}`, { headers: authHeaders() });
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Unterhaltung konnte nicht geladen werden"));

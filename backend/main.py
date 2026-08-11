@@ -17,6 +17,7 @@ from models import (
     User,
     Conversation,
     Message,
+    ConversationReadState,
     AppSettings,
     LostItemReport,
     STATUS_ACTIVE,
@@ -505,7 +506,40 @@ def update_me(
 # --- Messaging ("Finder kontaktieren") -------------------------------------
 
 
-def _conversation_to_out(conv: Conversation, viewer_id: int) -> ConversationOut:
+def _get_read_state(db: Session, conversation_id: int, user_id: int) -> Optional[ConversationReadState]:
+    return (
+        db.query(ConversationReadState)
+        .filter(
+            ConversationReadState.conversation_id == conversation_id,
+            ConversationReadState.user_id == user_id,
+        )
+        .first()
+    )
+
+
+def _mark_conversation_read(db: Session, conversation_id: int, user_id: int) -> None:
+    """Upserts (conversation_id, user_id)'s last-read marker to now. Callers
+    commit themselves (this only stages the change) so it can piggyback on
+    a commit the caller is already about to make."""
+    state = _get_read_state(db, conversation_id, user_id)
+    now = datetime.datetime.utcnow()
+    if state:
+        state.last_read_at = now
+    else:
+        db.add(ConversationReadState(conversation_id=conversation_id, user_id=user_id, last_read_at=now))
+
+
+def _unread_count_for(db: Session, conv: Conversation, viewer_id: int) -> int:
+    """Messages in `conv` sent by the *other* participant that `viewer_id`
+    hasn't read yet. No read-state row at all means "never opened" - every
+    message from the other side counts. Uses `conv.messages` (already
+    loaded for serialization by every caller) rather than a second query."""
+    state = _get_read_state(db, conv.id, viewer_id)
+    since = state.last_read_at if state else datetime.datetime.min
+    return sum(1 for m in conv.messages if m.sender_id != viewer_id and m.created_at and m.created_at > since)
+
+
+def _conversation_to_out(conv: Conversation, viewer_id: int, db: Session) -> ConversationOut:
     other_id = conv.starter_id if viewer_id != conv.starter_id else conv.found_item.reporter_id
     return ConversationOut(
         id=conv.id,
@@ -514,6 +548,7 @@ def _conversation_to_out(conv: Conversation, viewer_id: int) -> ConversationOut:
         other_participant_id=other_id,
         created_at=conv.created_at,
         messages=[MessageOut.model_validate(m) for m in conv.messages],
+        unread_count=_unread_count_for(db, conv, viewer_id),
     )
 
 
@@ -545,6 +580,10 @@ def contact_finder(
 
     message = Message(conversation_id=conv.id, sender_id=current_user.id, body=payload.body)
     db.add(message)
+    # The starter has obviously "read" everything up to (and including)
+    # the message they just wrote - without this, sending the first
+    # message would immediately, incorrectly, show as 1 unread for them.
+    _mark_conversation_read(db, conv.id, current_user.id)
     db.commit()
     db.refresh(conv)
 
@@ -556,7 +595,7 @@ def contact_finder(
         app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}",
     )
 
-    return _conversation_to_out(conv, current_user.id)
+    return _conversation_to_out(conv, current_user.id, db)
 
 
 @app.get("/api/conversations", response_model=List[ConversationOut])
@@ -568,7 +607,23 @@ def list_conversations(current_user: User = Depends(get_current_user), db: Sessi
         .order_by(Conversation.created_at.desc())
         .all()
     )
-    return [_conversation_to_out(c, current_user.id) for c in convs]
+    return [_conversation_to_out(c, current_user.id, db) for c in convs]
+
+
+@app.get("/api/conversations/unread-count")
+def get_unread_count(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Total unread-message count across every conversation the user is a
+    participant in - powers the navbar chat-bubble badge. Deliberately
+    separate from GET /api/conversations so the badge (polled regularly)
+    doesn't have to pull every conversation's full message list each time."""
+    convs = (
+        db.query(Conversation)
+        .join(FoundItem, Conversation.found_item_id == FoundItem.id)
+        .filter((Conversation.starter_id == current_user.id) | (FoundItem.reporter_id == current_user.id))
+        .all()
+    )
+    total = sum(_unread_count_for(db, c, current_user.id) for c in convs)
+    return {"unread_count": total}
 
 
 def _require_participant(conv: Conversation, user: User) -> None:
@@ -580,6 +635,10 @@ def _require_participant(conv: Conversation, user: User) -> None:
         raise HTTPException(status_code=403, detail="Du bist kein Teil dieser Unterhaltung.")
 
 
+def _is_participant(conv: Conversation, user: User) -> bool:
+    return user.id == conv.starter_id or user.id == conv.found_item.reporter_id
+
+
 @app.get("/api/conversations/{conversation_id}", response_model=ConversationOut)
 def get_conversation(
     conversation_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -588,7 +647,17 @@ def get_conversation(
     if not conv:
         raise HTTPException(status_code=404, detail="Unterhaltung nicht gefunden.")
     _require_participant(conv, current_user)
-    return _conversation_to_out(conv, current_user.id)
+
+    # Opening a conversation marks it read for its actual participants -
+    # deliberately skipped for an admin's moderation view (see
+    # _require_participant's admin bypass above), since an admin browsing
+    # a conversation they're not part of shouldn't affect either
+    # participant's own unread badge.
+    if _is_participant(conv, current_user):
+        _mark_conversation_read(db, conv.id, current_user.id)
+        db.commit()
+
+    return _conversation_to_out(conv, current_user.id, db)
 
 
 @app.post("/api/conversations/{conversation_id}/messages", response_model=ConversationOut, status_code=201)
@@ -605,6 +674,7 @@ def add_message(
 
     message = Message(conversation_id=conv.id, sender_id=current_user.id, body=payload.body)
     db.add(message)
+    _mark_conversation_read(db, conv.id, current_user.id)
     db.commit()
     db.refresh(conv)
 
@@ -619,7 +689,7 @@ def add_message(
             app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}",
         )
 
-    return _conversation_to_out(conv, current_user.id)
+    return _conversation_to_out(conv, current_user.id, db)
 
 
 # --- Admin ----------------------------------------------------------------
@@ -674,7 +744,7 @@ def admin_list_conversations(admin: User = Depends(require_admin), db: Session =
     participant in these, so this bypasses the normal starter/reporter
     check that GET /api/conversations relies on."""
     convs = db.query(Conversation).order_by(Conversation.created_at.desc()).all()
-    return [_conversation_to_out(c, admin.id) for c in convs]
+    return [_conversation_to_out(c, admin.id, db) for c in convs]
 
 
 @app.get("/api/admin/settings", response_model=AppSettingsOut)

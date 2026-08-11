@@ -8,7 +8,7 @@ import { categoryIcon } from "../categoryIcons.js";
 
 export default function Conversation() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, refreshUnreadCount } = useAuth();
   const { t } = useTranslation();
   const [conv, setConv] = useState(null);
   const [error, setError] = useState("");
@@ -18,8 +18,15 @@ export default function Conversation() {
 
   useEffect(() => {
     getConversation(id)
-      .then(setConv)
+      .then((data) => {
+        setConv(data);
+        // The GET already marked this conversation read server-side -
+        // refresh the navbar badge right away instead of waiting for the
+        // next poll interval.
+        refreshUnreadCount();
+      })
       .catch((err) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   useEffect(() => {

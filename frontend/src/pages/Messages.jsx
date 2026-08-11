@@ -41,19 +41,34 @@ export default function Messages() {
           <ul className="space-y-2">
             {conversations.map((c) => {
               const last = c.messages[c.messages.length - 1];
+              const unread = c.unread_count > 0;
               return (
                 <li key={c.id}>
                   <Link
                     to={`/nachrichten/${c.id}`}
-                    className="flex items-center gap-3 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md hover:border-trail-300 transition"
+                    className={`flex items-center gap-3 border rounded-xl p-3 shadow-card hover:shadow-md transition ${
+                      unread ? "border-trail-300 bg-trail-50/40 hover:border-trail-400" : "border-slate-200 bg-white hover:border-trail-300"
+                    }`}
                   >
                     <span className="text-xl shrink-0" aria-hidden>
                       {categoryIcon(c.found_item.category)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-800 truncate">{c.found_item.title}</p>
-                      {last && <p className="text-xs text-slate-500 truncate">{last.body}</p>}
+                      <p className={`text-sm truncate ${unread ? "font-semibold text-slate-900" : "font-medium text-slate-800"}`}>
+                        {c.found_item.title}
+                      </p>
+                      {last && (
+                        <p className={`text-xs truncate ${unread ? "text-slate-700" : "text-slate-500"}`}>{last.body}</p>
+                      )}
                     </div>
+                    {unread && (
+                      <span
+                        className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold flex items-center justify-center leading-none"
+                        aria-label={`${c.unread_count} ungelesen`}
+                      >
+                        {c.unread_count > 9 ? "9+" : c.unread_count}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

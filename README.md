@@ -152,6 +152,32 @@ sichtbar, aber sauber deaktiviert - kein Fehlerzustand. Ohne `SMTP_HOST`
 funktioniert das Nachrichtensystem weiterhin vollständig in der App, nur
 die zusätzliche E-Mail-Benachrichtigung entfällt.
 
+Alle drei Strava-Werte lassen sich alternativ auch live über
+**Admin → API-Konfiguration** in der Web-Oberfläche setzen/ändern (ohne
+Neustart) - die `.env`-Werte oben sind dann nur noch der Startwert.
+
+#### Fehlerbehebung: "Strava merkt sich die Verbindung nicht"
+
+Zwei Ursachen decken praktisch alle Fälle ab:
+
+1. **`FRONTEND_URL` zeigt nicht auf die echte Domain.** Nach dem
+   Token-Austausch leitet der Server den Browser auf
+   `${FRONTEND_URL}/profil?strava=connected` weiter. Steht `FRONTEND_URL`
+   noch auf dem `localhost:5173`-Default, landet der Nutzer nach einem
+   *technisch erfolgreichen* Connect auf einer toten localhost-Seite -
+   das sieht exakt so aus wie "die App merkt sich nichts". Prüfen:
+   `docker compose exec backend env | grep FRONTEND_URL` muss die echte
+   `https://...`-Domain zeigen.
+2. **`STRAVA_REDIRECT_URI` weicht vom registrierten Wert ab.** Muss exakt
+   `https://<domain>/api/strava/callback` sein (Pfad ist durch den
+   Router fix vorgegeben) - identisch in `.env`/Admin-Panel *und* im
+   Strava-App-Dashboard unter "Authorization Callback Domain".
+
+Bei jedem fehlgeschlagenen Token-Austausch/Refresh loggt das Backend jetzt
+den genauen Grund (`docker compose logs backend`) - Browser-Redirects
+können den Fehlergrund selbst nicht transportieren, daher steht die
+eigentliche Diagnose immer im Server-Log, nie nur im UI.
+
 Update auf dem Server nach `git pull`:
 
 ```bash
@@ -177,12 +203,17 @@ docker compose up -d --build
 | GET | `/api/strava/callback` | OAuth-Redirect-Ziel (von Strava aufgerufen) |
 | POST | `/api/strava/disconnect` | Strava-Verbindung trennen |
 | GET | `/api/strava/today-track` | Heutige Strava-Aktivität abgleichen |
+| POST | `/api/lost-items` | Verlust/Diebstahl melden - löst Umkreis-Alarm-E-Mails aus |
+| GET | `/api/lost-items/mine` | Eigene Verlust-/Diebstahlmeldungen |
 | POST | `/api/found-items/{id}/contact` | Unterhaltung mit Finder:in starten |
-| GET | `/api/conversations` | Eigene Unterhaltungen |
-| GET/POST | `/api/conversations/{id}` / `.../messages` | Thread lesen / antworten |
+| GET | `/api/conversations` | Eigene Unterhaltungen (inkl. `unread_count` je Thread) |
+| GET | `/api/conversations/unread-count` | Ungelesene Nachrichten gesamt (Badge) |
+| GET/POST | `/api/conversations/{id}` / `.../messages` | Thread lesen (markiert als gelesen) / antworten |
 | GET | `/api/admin/users`, `DELETE .../{id}` | Nutzerverwaltung (nur Admin) |
 | GET | `/api/admin/found-items?status_filter=` | Alle Fund-Pins inkl. Archiv (nur Admin) |
+| GET | `/api/admin/conversations` | Alle Unterhaltungen zur Moderation (nur Admin) |
 | GET | `/api/admin/stats` | Systemweite Kennzahlen (nur Admin) |
+| GET/PUT | `/api/admin/settings` | Strava/SMTP-Konfiguration lesen/ändern (nur Admin) |
 
 Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 `http://localhost:8000/docs`.

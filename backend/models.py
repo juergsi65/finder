@@ -1,5 +1,5 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -141,6 +141,27 @@ class Message(Base):
 
     conversation = relationship("Conversation", back_populates="messages")
     sender = relationship("User", foreign_keys=[sender_id])
+
+
+class ConversationReadState(Base):
+    """Per-user 'last read' marker for a conversation, powering the unread
+    message badge. One row per (conversation, user) that has ever opened
+    it - absence of a row means "never read", i.e. every message from the
+    other participant counts as unread. Created/updated by main.py's
+    `_mark_conversation_read` whenever a participant actually opens the
+    conversation (GET /api/conversations/{id}) or sends a message into it
+    (they've obviously seen everything up to that point)."""
+
+    __tablename__ = "conversation_read_states"
+    __table_args__ = (UniqueConstraint("conversation_id", "user_id", name="uq_conversation_read_state"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    last_read_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    conversation = relationship("Conversation")
+    user = relationship("User")
 
 
 class AppSettings(Base):

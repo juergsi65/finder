@@ -82,6 +82,11 @@ export default function Search() {
       setResult(res);
     } catch (err) {
       setError(err.message);
+      // A dead refresh_token gets cleared server-side on a failed refresh
+      // (see backend/strava.py's _ensure_fresh_token) - re-fetch status so
+      // a stale refresh_token doesn't leave the button stuck showing
+      // "connected" when it just got reset to disconnected.
+      getStravaStatus().then(setStrava).catch(() => {});
     } finally {
       setStravaLoading(false);
     }
