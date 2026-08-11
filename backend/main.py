@@ -21,6 +21,7 @@ from models import (
     AppSettings,
     EmailLog,
     LostItemReport,
+    Pin,
     STATUS_ACTIVE,
     STATUS_ARCHIVED,
     REPORT_TYPES,
@@ -41,6 +42,9 @@ from schemas import (
     EmailLogOut,
     TestEmailRequest,
     LostItemReportOut,
+    PinCreate,
+    PinUpdate,
+    PinOut,
 )
 from auth import (
     hash_password,
@@ -65,6 +69,11 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 # Radius (meters) for the automatic lost/stolen alert: how far from a
 # user's saved home location a new report has to be to email them.
 ALERT_RADIUS_M = 15_000.0
+
+# Default window (minutes) for the admin "online now" view - a user counts
+# as online if User.last_seen_at (see auth.get_current_user) falls within
+# this many minutes of now. Overridable per-request via ?minutes=.
+DEFAULT_ONLINE_MINUTES = 5
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -384,6 +393,74 @@ def list_my_lost_items(current_user: User = Depends(get_current_user), db: Sessi
         .order_by(LostItemReport.created_at.desc())
         .all()
     )
+
+
+# --- Map note pins -----------------------------------------------------
+
+
+@app.get("/api/pins", response_model=List[PinOut])
+def list_pins(db: Session = Depends(get_db)):
+    """Every note pin, newest first - public read like found-items, since
+    the whole point is other users seeing them on the shared map."""
+    return db.query(Pin).order_by(Pin.created_at.desc()).all()
+
+
+@app.post("/api/pins", response_model=PinOut, status_code=201)
+def create_pin(payload: PinCreate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pin = Pin(
+        user_id=current_user.id,
+        lat=payload.lat,
+        lng=payload.lng,
+        title=payload.title,
+        description=payload.description,
+    )
+    db.add(pin)
+    db.commit()
+    db.refresh(pin)
+    return pin
+
+
+@app.get("/api/pins/{pin_id}", response_model=PinOut)
+def get_pin(pin_id: int, db: Session = Depends(get_db)):
+    pin = db.query(Pin).filter(Pin.id == pin_id).first()
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin nicht gefunden.")
+    return pin
+
+
+def _require_pin_owner_or_admin(pin: Pin, user: User) -> None:
+    if user.role != "admin" and user.id != pin.user_id:
+        raise HTTPException(status_code=403, detail="Nur der Ersteller oder ein Admin kann diesen Pin bearbeiten.")
+
+
+@app.patch("/api/pins/{pin_id}", response_model=PinOut)
+def update_pin(
+    pin_id: int,
+    payload: PinUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pin = db.query(Pin).filter(Pin.id == pin_id).first()
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin nicht gefunden.")
+    _require_pin_owner_or_admin(pin, current_user)
+
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(pin, field, value)
+    db.commit()
+    db.refresh(pin)
+    return pin
+
+
+@app.delete("/api/pins/{pin_id}")
+def delete_pin(pin_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    pin = db.query(Pin).filter(Pin.id == pin_id).first()
+    if not pin:
+        raise HTTPException(status_code=404, detail="Pin nicht gefunden.")
+    _require_pin_owner_or_admin(pin, current_user)
+    db.delete(pin)
+    db.commit()
+    return {"ok": True}
 
 
 # --- Search (GPX upload) ---------------------------------------------------
@@ -737,12 +814,37 @@ def admin_list_found_items(
 
 @app.get("/api/admin/stats")
 def admin_stats(_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    online_cutoff = datetime.datetime.utcnow() - datetime.timedelta(minutes=DEFAULT_ONLINE_MINUTES)
     return {
         "users": db.query(User).count(),
         "found_items_active": db.query(FoundItem).filter(FoundItem.status == STATUS_ACTIVE).count(),
         "found_items_archived": db.query(FoundItem).filter(FoundItem.status == STATUS_ARCHIVED).count(),
         "conversations": db.query(Conversation).count(),
+        "online_users": db.query(User).filter(User.last_seen_at.isnot(None), User.last_seen_at >= online_cutoff).count(),
+        "online_minutes": DEFAULT_ONLINE_MINUTES,
+        "strava_connected": db.query(User).filter(User.strava_access_token.isnot(None)).count(),
+        "emails_sent": db.query(EmailLog).filter(EmailLog.status == "sent").count(),
+        "emails_failed": db.query(EmailLog).filter(EmailLog.status == "failed").count(),
+        "pins": db.query(Pin).count(),
     }
+
+
+@app.get("/api/admin/online-users", response_model=List[UserOut])
+def admin_list_online_users(
+    minutes: int = DEFAULT_ONLINE_MINUTES,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Users whose last_seen_at falls within the last `minutes` - the
+    concrete list behind admin_stats's `online_users` count."""
+    minutes = max(1, min(minutes, 1440))
+    cutoff = datetime.datetime.utcnow() - datetime.timedelta(minutes=minutes)
+    return (
+        db.query(User)
+        .filter(User.last_seen_at.isnot(None), User.last_seen_at >= cutoff)
+        .order_by(User.last_seen_at.desc())
+        .all()
+    )
 
 
 @app.get("/api/admin/conversations", response_model=List[ConversationOut])

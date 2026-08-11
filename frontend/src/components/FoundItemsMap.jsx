@@ -1,6 +1,7 @@
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import "../leafletIcons.js";
+import { notePinIcon } from "../leafletIcons.js";
 import { DEFAULT_CENTER } from "../constants.js";
 import { categoryIcon } from "../categoryIcons.js";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
@@ -21,13 +22,28 @@ function FlyTo({ target, zoom }) {
   return null;
 }
 
+/** Fires `onMapClick(latlng)` for a click on open map area - clicking an
+ * existing Marker/Popup never reaches this (Leaflet markers don't bubble
+ * click events up to the map), so this only fires for genuinely empty
+ * spots, which is exactly "drop a new pin here". */
+function ClickHandler({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      onMapClick?.(e.latlng);
+    },
+  });
+  return null;
+}
+
 /**
  * The app's main "browse for lost gear" surface: every found-item pin
  * plotted on an interactive map, no route upload required. `userPos` (if
  * known) is shown as a small dot so it's clear what "in deiner Nähe" is
- * relative to.
+ * relative to. `pins` (optional) overlays free-form note pins; pass
+ * `onMapClick`/`onPinClick` to make the map interactive (Home.jsx wires
+ * these to open PinModal in create/view mode).
  */
-export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
+export default function FoundItemsMap({ center, userPos, items, pins = [], flyToTarget, onMapClick, onPinClick }) {
   const { t } = useTranslation();
 
   return (
@@ -37,6 +53,7 @@ export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <FlyTo target={flyToTarget} />
+      {onMapClick && <ClickHandler onMapClick={onMapClick} />}
 
       {userPos && (
         <CircleMarker
@@ -65,6 +82,15 @@ export default function FoundItemsMap({ center, userPos, items, flyToTarget }) {
             </div>
           </Popup>
         </Marker>
+      ))}
+
+      {pins.map((pin) => (
+        <Marker
+          key={`pin-${pin.id}`}
+          position={[pin.lat, pin.lng]}
+          icon={notePinIcon}
+          eventHandlers={onPinClick ? { click: () => onPinClick(pin) } : undefined}
+        />
       ))}
     </MapContainer>
   );

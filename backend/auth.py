@@ -21,6 +21,13 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week
 # tokenUrl is only used to populate FastAPI's /docs "Authorize" button.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
+# How often User.last_seen_at is actually written - every authenticated
+# request goes through get_current_user, so without this throttle a user
+# polling e.g. the unread-message badge every 30s would still cause a
+# write on literally every request. One update per minute is more than
+# enough resolution for an "online in the last N minutes" admin view.
+LAST_SEEN_UPDATE_INTERVAL = datetime.timedelta(minutes=1)
+
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
@@ -61,6 +68,12 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise _credentials_exception()
+
+    now = datetime.datetime.utcnow()
+    if not user.last_seen_at or now - user.last_seen_at > LAST_SEEN_UPDATE_INTERVAL:
+        user.last_seen_at = now
+        db.commit()
+
     return user
 
 

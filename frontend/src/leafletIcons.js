@@ -26,4 +26,17 @@ export const pendingIcon = L.icon({
   className: "hue-rotate-90",
 });
 
+// Free-form note pins (see Pin model) - visually distinct (violet tint)
+// from the default blue found-item markers and the pending/picker marker.
+export const notePinIcon = L.icon({
+  iconUrl: markerIconUrl,
+  iconRetinaUrl: markerIcon2xUrl,
+  shadowUrl: markerShadowUrl,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  className: "hue-rotate-180 saturate-150",
+});
+
 L.Marker.prototype.options.icon = defaultIcon;

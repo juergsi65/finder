@@ -338,6 +338,12 @@ export async function apiAdminStats() {
   return res.json();
 }
 
+export async function apiAdminOnlineUsers(minutes = 5) {
+  const res = await fetch(`/api/admin/online-users?minutes=${minutes}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Aktive Nutzer konnten nicht geladen werden"));
+  return res.json();
+}
+
 export async function apiAdminListConversations() {
   const res = await fetch("/api/admin/conversations", { headers: authHeaders() });
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Unterhaltungen konnten nicht geladen werden"));
@@ -377,5 +383,39 @@ export async function apiAdminSendTestEmail(to) {
     body: JSON.stringify({ to }),
   });
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Test-E-Mail konnte nicht gesendet werden"));
+  return res.json();
+}
+
+// --- Map note pins ---------------------------------------------------------
+
+export async function getPins() {
+  const res = await fetch("/api/pins");
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Pins konnten nicht geladen werden"));
+  return res.json();
+}
+
+export async function createPin({ lat, lng, title, description }) {
+  const res = await fetch("/api/pins", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ lat, lng, title, description: description || null }),
+  });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Pin konnte nicht gespeichert werden"));
+  return res.json();
+}
+
+export async function updatePin(id, fields) {
+  const res = await fetch(`/api/pins/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(fields),
+  });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Pin konnte nicht aktualisiert werden"));
+  return res.json();
+}
+
+export async function deletePin(id) {
+  const res = await fetch(`/api/pins/${id}`, { method: "DELETE", headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Pin konnte nicht gelöscht werden"));
   return res.json();
 }

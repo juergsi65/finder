@@ -259,11 +259,14 @@ docker compose up -d --build
 | GET | `/api/strava/today-track` | Heutige Strava-Aktivität abgleichen |
 | POST | `/api/lost-items` | Verlust/Diebstahl melden - löst Umkreis-Alarm-E-Mails aus |
 | GET | `/api/lost-items/mine` | Eigene Verlust-/Diebstahlmeldungen |
+| GET/POST | `/api/pins` | Notiz-Pins lesen (öffentlich) / erstellen (Login erforderlich) |
+| GET/PATCH/DELETE | `/api/pins/{id}` | Einzelnen Notiz-Pin lesen / bearbeiten / löschen - Ersteller:in oder Admin |
 | POST | `/api/found-items/{id}/contact` | Unterhaltung mit Finder:in starten |
 | GET | `/api/conversations` | Eigene Unterhaltungen (inkl. `unread_count` je Thread) |
 | GET | `/api/conversations/unread-count` | Ungelesene Nachrichten gesamt (Badge) |
 | GET/POST | `/api/conversations/{id}` / `.../messages` | Thread lesen (markiert als gelesen) / antworten |
 | GET | `/api/admin/users`, `DELETE .../{id}` | Nutzerverwaltung (nur Admin) |
+| GET | `/api/admin/online-users?minutes=` | Nutzer, die innerhalb der letzten X Minuten aktiv waren (nur Admin) |
 | GET | `/api/admin/found-items?status_filter=` | Alle Fund-Pins inkl. Archiv (nur Admin) |
 | GET | `/api/admin/conversations` | Alle Unterhaltungen zur Moderation (nur Admin) |
 | GET | `/api/admin/stats` | Systemweite Kennzahlen (nur Admin) |

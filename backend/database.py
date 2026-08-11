@@ -84,6 +84,7 @@ def _column_migrations():
         ("users", "home_lng", "FLOAT"),
         ("app_settings", "resend_api_key", "VARCHAR"),
         ("app_settings", "resend_from", "VARCHAR"),
+        ("users", "last_seen_at", "DATETIME"),
     ]
 
 

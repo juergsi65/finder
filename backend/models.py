@@ -54,6 +54,12 @@ class User(Base):
     home_lat = Column(Float, nullable=True)
     home_lng = Column(Float, nullable=True)
 
+    # Bumped (throttled to at most once/minute, see auth.get_current_user)
+    # on every authenticated request - powers the admin "online now" view.
+    # NULL means "never made an authenticated request since this column
+    # existed" (e.g. an account that only ever registered), not an error.
+    last_seen_at = Column(DateTime, nullable=True)
+
     found_items = relationship("FoundItem", back_populates="reporter")
 
     @property
@@ -110,6 +116,32 @@ class LostItemReport(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     reporter = relationship("User", foreign_keys=[reporter_id])
+
+
+class Pin(Base):
+    """A free-form note pin dropped directly on the home map by a logged-in
+    user - deliberately lighter weight than FoundItem/LostItemReport (just
+    a title + optional description, no category or photo required), for
+    quick general-purpose markers (meeting points, trail notes, warnings,
+    ...). Visible to everyone; editable/deletable by its owner or an
+    admin (see main.py's `_require_pin_owner_or_admin`).
+
+    Uses `lat`/`lng` rather than `latitude`/`longitude` to match every
+    other geo-tagged model in this codebase (FoundItem, LostItemReport,
+    User.home_lat/lng) - same data, consistent naming."""
+
+    __tablename__ = "pins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    lat = Column(Float, nullable=False)
+    lng = Column(Float, nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    owner = relationship("User", foreign_keys=[user_id])
 
 
 class Conversation(Base):

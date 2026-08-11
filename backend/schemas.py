@@ -129,6 +129,10 @@ class UserOut(BaseModel):
     alert_opt_in: bool = False
     home_lat: Optional[float] = None
     home_lng: Optional[float] = None
+    # Bumped on every authenticated request (throttled, see
+    # auth.get_current_user) - powers the admin "online now" view. None
+    # for an account that's never made an authenticated request.
+    last_seen_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True
@@ -248,6 +252,81 @@ class LostItemReportOut(BaseModel):
     lng: float
     occurred_date: Optional[datetime.date] = None
     created_at: Optional[datetime.datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# --- Map note pins --------------------------------------------------------
+
+
+class PinCreate(BaseModel):
+    lat: float
+    lng: float
+    title: str
+    description: Optional[str] = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Bitte einen Titel angeben.")
+        if len(v) > 200:
+            raise ValueError("Titel ist zu lang (max. 200 Zeichen).")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if len(v) > 2000:
+            raise ValueError("Beschreibung ist zu lang (max. 2000 Zeichen).")
+        return v or None
+
+
+class PinUpdate(BaseModel):
+    """Both fields optional (exclude_unset) - editing just the description
+    doesn't require resending the title. Empty string clears description;
+    title can't be cleared to empty (still validated when provided)."""
+
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if not v:
+            raise ValueError("Titel darf nicht leer sein.")
+        if len(v) > 200:
+            raise ValueError("Titel ist zu lang (max. 200 Zeichen).")
+        return v
+
+    @field_validator("description")
+    @classmethod
+    def validate_description(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        v = v.strip()
+        if len(v) > 2000:
+            raise ValueError("Beschreibung ist zu lang (max. 2000 Zeichen).")
+        return v or None
+
+
+class PinOut(BaseModel):
+    id: int
+    lat: float
+    lng: float
+    title: str
+    description: Optional[str] = None
+    owner: Optional[ReporterOut] = None
+    created_at: Optional[datetime.datetime] = None
+    updated_at: Optional[datetime.datetime] = None
 
     class Config:
         from_attributes = True

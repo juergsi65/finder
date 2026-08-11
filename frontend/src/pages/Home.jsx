@@ -4,8 +4,10 @@ import FoundItemsMap from "../components/FoundItemsMap.jsx";
 import TopLoadingBar from "../components/TopLoadingBar.jsx";
 import Spinner from "../components/Spinner.jsx";
 import OnboardingModal from "../components/OnboardingModal.jsx";
+import PinModal from "../components/PinModal.jsx";
+import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
-import { getCategories, getFoundItems } from "../api.js";
+import { getCategories, getFoundItems, getPins } from "../api.js";
 import { categoryIcon } from "../categoryIcons.js";
 import { DEFAULT_CENTER, NEARBY_RADIUS_M } from "../constants.js";
 
@@ -13,9 +15,12 @@ const ALL_CATEGORIES = "__all__";
 const ONBOARDING_SEEN_KEY = "trailfound_onboarding_seen";
 
 export default function Home() {
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
+  const [pins, setPins] = useState([]);
+  const [pinModal, setPinModal] = useState(null);
   const [userPos, setUserPos] = useState(null);
   const [locating, setLocating] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
@@ -29,6 +34,40 @@ export default function Home() {
       .then(setCategories)
       .catch(() => setCategories(["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"]));
   }, []);
+
+  useEffect(() => {
+    getPins()
+      .then(setPins)
+      .catch(() => {});
+  }, []);
+
+  function handleMapClick(latlng) {
+    if (!user) {
+      setError(t("pin.loginRequired"));
+      setTimeout(() => setError((prev) => (prev === t("pin.loginRequired") ? "" : prev)), 3500);
+      return;
+    }
+    setPinModal({ mode: "create", lat: latlng.lat, lng: latlng.lng });
+  }
+
+  function handlePinClick(pin) {
+    setPinModal({ mode: "view", pin });
+  }
+
+  function handlePinCreated(created) {
+    setPins((prev) => [created, ...prev]);
+    setPinModal(null);
+  }
+
+  function handlePinUpdated(updated) {
+    setPins((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setPinModal({ mode: "view", pin: updated });
+  }
+
+  function handlePinDeleted(id) {
+    setPins((prev) => prev.filter((p) => p.id !== id));
+    setPinModal(null);
+  }
 
   // Alpha-testers see the 3-step "how it works" guide once, automatically;
   // anyone can reopen it anytime via the "?" button on the banner.
@@ -114,7 +153,10 @@ export default function Home() {
         center={userPos || DEFAULT_CENTER}
         userPos={userPos}
         items={filteredItems}
+        pins={pins}
         flyToTarget={flyToTarget}
+        onMapClick={handleMapClick}
+        onPinClick={handlePinClick}
       />
 
       {/* Overlay layer - centered to a phone-width column on large screens so
@@ -207,6 +249,17 @@ export default function Home() {
       </div>
 
       {showOnboarding && <OnboardingModal onClose={dismissOnboarding} />}
+
+      {pinModal && (
+        <PinModal
+          pin={pinModal.mode === "view" ? pinModal.pin : null}
+          createAt={pinModal.mode === "create" ? { lat: pinModal.lat, lng: pinModal.lng } : null}
+          onClose={() => setPinModal(null)}
+          onCreated={handlePinCreated}
+          onUpdated={handlePinUpdated}
+          onDeleted={handlePinDeleted}
+        />
+      )}
     </div>
   );
 }

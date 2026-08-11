@@ -4,6 +4,7 @@ import {
   apiAdminListUsers,
   apiAdminDeleteUser,
   apiAdminStats,
+  apiAdminOnlineUsers,
   apiAdminListFoundItems,
   apiAdminListConversations,
   apiAdminGetSettings,
@@ -23,6 +24,7 @@ export default function Admin() {
   const { t } = useTranslation();
   const [mainTab, setMainTab] = useState("overview");
   const [users, setUsers] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const [items, setItems] = useState([]);
   const [statusTab, setStatusTab] = useState("active");
   const [stats, setStats] = useState(null);
@@ -33,14 +35,16 @@ export default function Admin() {
     setLoading(true);
     setError("");
     try {
-      const [u, s, i] = await Promise.all([
+      const [u, s, i, online] = await Promise.all([
         apiAdminListUsers(),
         apiAdminStats(),
         apiAdminListFoundItems(tab),
+        apiAdminOnlineUsers(),
       ]);
       setUsers(u);
       setStats(s);
       setItems(i);
+      setOnlineUsers(online);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -94,6 +98,16 @@ export default function Admin() {
         <Spinner className="w-8 h-8 text-trail-600" />
       </div>
     );
+  }
+
+  const onlineUserIds = new Set(onlineUsers.map((u) => u.id));
+
+  function timeAgo(iso) {
+    if (!iso) return "";
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const minutes = Math.max(0, Math.round(diffMs / 60000));
+    if (minutes < 1) return t("admin.online.justNow");
+    return t("admin.online.minutesAgo", { minutes });
   }
 
   return (
@@ -162,6 +176,15 @@ export default function Admin() {
                 <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.users")}</p>
               </div>
               <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-trail-700 flex items-center justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-trail-500 inline-block" aria-hidden />
+                  {stats.online_users ?? 0}
+                </p>
+                <p className="text-[11px] text-trail-700/70 mt-0.5">
+                  {t("admin.online.label")} ({stats.online_minutes ?? 5} {t("admin.online.minutesSuffix")})
+                </p>
+              </div>
+              <div className="bg-trail-50 border border-trail-100 rounded-xl p-3 text-center">
                 <p className="text-xl font-bold text-trail-700">{stats.found_items_active}</p>
                 <p className="text-[11px] text-trail-700/70 mt-0.5">{t("admin.foundItemsActive")}</p>
               </div>
@@ -173,8 +196,47 @@ export default function Admin() {
                 <p className="text-xl font-bold text-slate-600">{stats.conversations ?? "-"}</p>
                 <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.conversations")}</p>
               </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-slate-600">{stats.pins ?? "-"}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.pins")}</p>
+              </div>
+              <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-orange-600">{stats.strava_connected ?? 0}</p>
+                <p className="text-[11px] text-orange-600/70 mt-0.5">{t("admin.stravaConnectedCount")}</p>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+                <p className="text-xl font-bold text-slate-600">{stats.emails_sent ?? 0}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">{t("admin.emailsSent")}</p>
+              </div>
             </div>
           )}
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-2 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-trail-500 inline-block" aria-hidden />
+              {t("admin.online.heading")} ({onlineUsers.length})
+            </h3>
+            {onlineUsers.length === 0 ? (
+              <p className="text-sm text-slate-400">{t("admin.online.empty")}</p>
+            ) : (
+              <ul className="space-y-2">
+                {onlineUsers.map((u) => (
+                  <li key={u.id} className="flex items-center justify-between gap-2 border border-trail-100 bg-trail-50/40 rounded-xl p-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{u.display_name || u.email}</p>
+                      <p className="text-xs text-slate-400">
+                        {u.role === "admin" ? "👑 " : u.role === "verein" ? "🏔️ " : ""}
+                        {t(`roles.${u.role}`)}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs text-trail-700 font-medium whitespace-nowrap">
+                      {timeAgo(u.last_seen_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           <div>
             <h3 className="text-sm font-semibold text-slate-700 mb-2">
@@ -184,7 +246,12 @@ export default function Admin() {
               {users.map((u) => (
                 <li key={u.id} className="flex items-center justify-between gap-2 border border-slate-200 bg-white rounded-xl p-3 shadow-card hover:shadow-md transition-shadow">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800 truncate">{u.display_name || u.email}</p>
+                    <p className="text-sm font-medium text-slate-800 truncate flex items-center gap-1.5">
+                      {onlineUserIds.has(u.id) && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-trail-500 inline-block shrink-0" aria-hidden title={t("admin.online.label")} />
+                      )}
+                      <span className="truncate">{u.display_name || u.email}</span>
+                    </p>
                     <p className="text-xs text-slate-400">
                       {u.role === "admin" ? "👑 " : u.role === "verein" ? "🏔️ " : ""}
                       {t(`roles.${u.role}`)}
