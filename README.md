@@ -139,7 +139,15 @@ STRAVA_CLIENT_SECRET=...
 STRAVA_REDIRECT_URI=https://deine-domain.example/api/strava/callback
 FRONTEND_URL=https://deine-domain.example
 
-# Optional: E-Mail-Benachrichtigungen fürs Nachrichtensystem
+# Bevorzugter E-Mail-Versand: Resend (https://resend.com/api-keys).
+# RESEND_FROM funktioniert sofort über Resends Sandbox-Absender, auch ohne
+# eigene verifizierte Domain - das verhindert den klassischen 403 beim
+# allerersten Versand.
+RESEND_API_KEY=re_...
+RESEND_FROM="TrailFound <onboarding@resend.dev>"
+
+# Fallback: klassisches SMTP-Relay, wird nur genutzt, wenn kein
+# RESEND_API_KEY gesetzt ist
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=...
@@ -148,13 +156,17 @@ SMTP_FROM="TrailFound <no-reply@deine-domain.example>"
 ```
 
 Ohne `STRAVA_CLIENT_ID`/`SECRET` bleibt der Strava-Connect-Button im Profil
-sichtbar, aber sauber deaktiviert - kein Fehlerzustand. Ohne `SMTP_HOST`
-funktioniert das Nachrichtensystem weiterhin vollständig in der App, nur
-die zusätzliche E-Mail-Benachrichtigung entfällt.
+sichtbar, aber sauber deaktiviert - kein Fehlerzustand. Ohne `RESEND_API_KEY`
+und ohne `SMTP_HOST` funktioniert das Nachrichtensystem weiterhin
+vollständig in der App, nur die zusätzliche E-Mail-Benachrichtigung
+entfällt.
 
-Alle drei Strava-Werte lassen sich alternativ auch live über
+Alle Werte oben lassen sich alternativ auch live über
 **Admin → API-Konfiguration** in der Web-Oberfläche setzen/ändern (ohne
-Neustart) - die `.env`-Werte oben sind dann nur noch der Startwert.
+Neustart) - die `.env`-Werte sind dann nur noch der Startwert. Jeder
+Versandversuch (erfolgreich oder fehlgeschlagen, inkl. Fehlermeldung von
+Resend/SMTP) wird zusätzlich in der `email_logs`-Tabelle protokolliert
+und ist über `GET /api/admin/email-logs` einsehbar.
 
 #### Fehlerbehebung: "Strava merkt sich die Verbindung nicht"
 
@@ -213,7 +225,8 @@ docker compose up -d --build
 | GET | `/api/admin/found-items?status_filter=` | Alle Fund-Pins inkl. Archiv (nur Admin) |
 | GET | `/api/admin/conversations` | Alle Unterhaltungen zur Moderation (nur Admin) |
 | GET | `/api/admin/stats` | Systemweite Kennzahlen (nur Admin) |
-| GET/PUT | `/api/admin/settings` | Strava/SMTP-Konfiguration lesen/ändern (nur Admin) |
+| GET/PUT | `/api/admin/settings` | Strava/Resend/SMTP-Konfiguration lesen/ändern (nur Admin) |
+| GET | `/api/admin/email-logs?status_filter=&limit=` | Protokoll aller Versandversuche (nur Admin) |
 
 Interaktive API-Doku (Swagger UI) läuft während der Entwicklung unter
 `http://localhost:8000/docs`.

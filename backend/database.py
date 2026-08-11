@@ -82,6 +82,8 @@ def _column_migrations():
         ("users", "alert_opt_in", "BOOLEAN NOT NULL DEFAULT 0"),
         ("users", "home_lat", "FLOAT"),
         ("users", "home_lng", "FLOAT"),
+        ("app_settings", "resend_api_key", "VARCHAR"),
+        ("app_settings", "resend_from", "VARCHAR"),
     ]
 
 

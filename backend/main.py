@@ -19,6 +19,7 @@ from models import (
     Message,
     ConversationReadState,
     AppSettings,
+    EmailLog,
     LostItemReport,
     STATUS_ACTIVE,
     STATUS_ARCHIVED,
@@ -37,6 +38,7 @@ from schemas import (
     ConversationOut,
     AppSettingsOut,
     AppSettingsUpdate,
+    EmailLogOut,
     LostItemReportOut,
 )
 from auth import (
@@ -50,7 +52,7 @@ from geo import haversine_distance_m
 from gpx_matching import extract_track_points, GpxParseError, DEFAULT_RADIUS_M, MAX_RADIUS_M
 from search import build_search_response
 from email_utils import send_new_message_notification, send_radius_alert
-from settings_store import get_or_create_settings, get_strava_config, get_smtp_config
+from settings_store import get_or_create_settings, get_strava_config, get_email_config
 import strava
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -256,11 +258,12 @@ def delete_found_item(
 def _notify_nearby_users(db: Session, report: LostItemReport) -> None:
     """Emails every opted-in user whose saved home location is within
     ALERT_RADIUS_M of where the item was lost/stolen. Best-effort: an
-    unconfigured/broken SMTP relay or a single bad address must never break
-    report submission, so failures are only logged, and this always runs
-    as a FastAPI BackgroundTask (after the response is already sent) with
-    its own DB session rather than the request's - see the caller."""
-    config = get_smtp_config(db)
+    unconfigured/broken email provider or a single bad address must never
+    break report submission, so failures are only logged (and recorded in
+    email_logs), and this always runs as a FastAPI BackgroundTask (after
+    the response is already sent) with its own DB session rather than the
+    request's - see the caller."""
+    config = get_email_config(db)
     if not config.is_configured:
         return
 
@@ -286,6 +289,7 @@ def _notify_nearby_users(db: Session, report: LostItemReport) -> None:
                 serial_number=report.serial_number,
                 description=report.description,
                 app_url=FRONTEND_URL,
+                db=db,
             )
         except Exception:  # noqa: BLE001 - one bad address must not stop the rest
             logger.exception("Umkreis-Alarm an %s fehlgeschlagen", user.email)
@@ -588,11 +592,12 @@ def contact_finder(
     db.refresh(conv)
 
     send_new_message_notification(
-        get_smtp_config(db),
+        get_email_config(db),
         item.reporter.email,
         item.title,
         payload.body,
         app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}",
+        db=db,
     )
 
     return _conversation_to_out(conv, current_user.id, db)
@@ -682,11 +687,12 @@ def add_message(
     other = db.query(User).filter(User.id == other_id).first()
     if other:
         send_new_message_notification(
-            get_smtp_config(db),
+            get_email_config(db),
             other.email,
             conv.found_item.title,
             payload.body,
             app_url=f"{FRONTEND_URL}/nachrichten/{conv.id}",
+            db=db,
         )
 
     return _conversation_to_out(conv, current_user.id, db)
@@ -749,24 +755,28 @@ def admin_list_conversations(admin: User = Depends(require_admin), db: Session =
 
 @app.get("/api/admin/settings", response_model=AppSettingsOut)
 def admin_get_settings(_admin: User = Depends(require_admin), db: Session = Depends(get_db)):
-    """Current API configuration (Strava OAuth app, SMTP relay), so an
-    admin can manage it from the web UI instead of editing .env files on
-    the server. Secrets are never echoed back in plaintext - only whether
-    one is currently set."""
+    """Current API configuration (Strava OAuth app, Resend/SMTP email), so
+    an admin can manage it from the web UI instead of editing .env files
+    on the server. Secrets are never echoed back in plaintext - only
+    whether one is currently set."""
     settings = get_or_create_settings(db)
     strava_cfg = get_strava_config(db)
-    smtp_cfg = get_smtp_config(db)
+    email_cfg = get_email_config(db)
     return AppSettingsOut(
         strava_client_id=strava_cfg.client_id,
         strava_client_secret_set=bool(strava_cfg.client_secret),
         strava_redirect_uri=strava_cfg.redirect_uri,
         strava_configured=strava_cfg.is_configured,
-        smtp_host=smtp_cfg.host,
-        smtp_port=smtp_cfg.port,
-        smtp_user=smtp_cfg.user,
-        smtp_password_set=bool(smtp_cfg.password),
-        smtp_from=smtp_cfg.from_address,
-        smtp_configured=smtp_cfg.is_configured,
+        resend_api_key_set=bool(email_cfg.resend_api_key),
+        resend_from=email_cfg.resend_from,
+        resend_configured=email_cfg.provider == "resend",
+        smtp_host=email_cfg.smtp_host,
+        smtp_port=email_cfg.smtp_port,
+        smtp_user=email_cfg.smtp_user,
+        smtp_password_set=bool(email_cfg.smtp_password),
+        smtp_from=email_cfg.smtp_from,
+        smtp_configured=bool(email_cfg.smtp_host),
+        email_provider=email_cfg.provider,
         updated_at=settings.updated_at,
     )
 
@@ -788,3 +798,21 @@ def admin_update_settings(
     db.commit()
 
     return admin_get_settings(_admin, db)
+
+
+@app.get("/api/admin/email-logs", response_model=List[EmailLogOut])
+def admin_list_email_logs(
+    status_filter: Optional[str] = None,
+    limit: int = 50,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Recent outbound email attempts (message-relay notifications, radius
+    alerts, ...), newest first - the concrete delivery record behind the
+    'wurden E-Mails wirklich versendet?' question, without needing
+    container-log access. `status_filter` accepts "sent" or "failed"."""
+    limit = max(1, min(limit, 200))
+    query = db.query(EmailLog)
+    if status_filter:
+        query = query.filter(EmailLog.status == status_filter)
+    return query.order_by(EmailLog.created_at.desc()).limit(limit).all()

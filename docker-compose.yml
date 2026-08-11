@@ -20,9 +20,17 @@ services:
       # Used to build links back into the app (Strava OAuth redirect target,
       # email notification links). Set to your real domain in production.
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      # Optional SMTP relay for the internal messaging system's email
-      # notifications. Without these, messaging still works in-app; the
-      # other party just won't get an email nudge.
+      # Preferred email provider (message-relay notifications, radius
+      # alerts): Resend, via a plain API key - https://resend.com/api-keys.
+      # RESEND_FROM defaults to Resend's sandbox sender
+      # (onboarding@resend.dev), which works immediately without verifying
+      # a domain first; switch to a verified-domain address once one is
+      # set up. Both can also be set live under Admin -> API-Konfiguration.
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
+      - RESEND_FROM=${RESEND_FROM:-TrailFound <onboarding@resend.dev>}
+      # Fallback SMTP relay, only used when no RESEND_API_KEY is set.
+      # Without either provider configured, messaging still works fully
+      # in-app; the other party just won't get an email nudge.
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}

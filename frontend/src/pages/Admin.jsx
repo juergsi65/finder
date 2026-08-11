@@ -8,6 +8,7 @@ import {
   apiAdminListConversations,
   apiAdminGetSettings,
   apiAdminUpdateSettings,
+  apiAdminListEmailLogs,
   deleteFoundItem,
   setFoundItemStatus,
 } from "../api.js";
@@ -106,34 +107,47 @@ export default function Admin() {
         </p>
       </div>
 
-      <div className="flex rounded-full border border-slate-200 overflow-hidden text-sm w-fit">
-        <button
-          type="button"
-          onClick={() => setMainTab("overview")}
-          className={`px-4 py-1.5 font-medium transition ${
-            mainTab === "overview" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          {t("admin.tabOverview")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMainTab("messages")}
-          className={`px-4 py-1.5 font-medium transition ${
-            mainTab === "messages" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          {t("admin.tabMessages")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMainTab("apiConfig")}
-          className={`px-4 py-1.5 font-medium transition ${
-            mainTab === "apiConfig" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
-          }`}
-        >
-          {t("admin.tabApiConfig")}
-        </button>
+      {/* Horizontally scrollable on narrow screens - 4 tabs no longer fit
+          a single fixed-width row on mobile without this. */}
+      <div className="overflow-x-auto -mx-4 px-4">
+        <div className="flex rounded-full border border-slate-200 overflow-hidden text-sm w-max">
+          <button
+            type="button"
+            onClick={() => setMainTab("overview")}
+            className={`px-4 py-1.5 font-medium whitespace-nowrap shrink-0 transition ${
+              mainTab === "overview" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t("admin.tabOverview")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab("messages")}
+            className={`px-4 py-1.5 font-medium whitespace-nowrap shrink-0 transition ${
+              mainTab === "messages" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t("admin.tabMessages")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab("apiConfig")}
+            className={`px-4 py-1.5 font-medium whitespace-nowrap shrink-0 transition ${
+              mainTab === "apiConfig" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t("admin.tabApiConfig")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab("emailLog")}
+            className={`px-4 py-1.5 font-medium whitespace-nowrap shrink-0 transition ${
+              mainTab === "emailLog" ? "bg-trail-600 text-white" : "bg-white text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            {t("admin.tabEmailLog")}
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
@@ -255,6 +269,8 @@ export default function Admin() {
         </div>
       ) : mainTab === "messages" ? (
         <AdminMessagesPanel />
+      ) : mainTab === "emailLog" ? (
+        <EmailLogPanel />
       ) : (
         <ApiConfigPanel />
       )}
@@ -332,7 +348,7 @@ function AdminMessagesPanel() {
   );
 }
 
-function StatusBadge({ configured, t }) {
+function StatusBadge({ configured, t, label, notLabel }) {
   return (
     <span
       className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
@@ -340,7 +356,9 @@ function StatusBadge({ configured, t }) {
       }`}
     >
       <span aria-hidden>{configured ? "●" : "○"}</span>
-      {configured ? t("admin.apiConfig.stravaConfigured") : t("admin.apiConfig.stravaNotConfigured")}
+      {configured
+        ? label || t("admin.apiConfig.stravaConfigured")
+        : notLabel || t("admin.apiConfig.stravaNotConfigured")}
     </span>
   );
 }
@@ -357,6 +375,8 @@ function ApiConfigPanel() {
     strava_client_id: "",
     strava_client_secret: "",
     strava_redirect_uri: "",
+    resend_api_key: "",
+    resend_from: "",
     smtp_host: "",
     smtp_port: "",
     smtp_user: "",
@@ -374,11 +394,13 @@ function ApiConfigPanel() {
         ...prev,
         strava_client_id: s.strava_client_id || "",
         strava_redirect_uri: s.strava_redirect_uri || "",
+        resend_from: s.resend_from || "",
         smtp_host: s.smtp_host || "",
         smtp_port: s.smtp_port != null ? String(s.smtp_port) : "",
         smtp_user: s.smtp_user || "",
         smtp_from: s.smtp_from || "",
         strava_client_secret: "",
+        resend_api_key: "",
         smtp_password: "",
       }));
     } catch (err) {
@@ -407,17 +429,19 @@ function ApiConfigPanel() {
       const payload = {
         strava_client_id: form.strava_client_id,
         strava_redirect_uri: form.strava_redirect_uri,
+        resend_from: form.resend_from,
         smtp_host: form.smtp_host,
         smtp_port: form.smtp_port === "" ? null : Number(form.smtp_port),
         smtp_user: form.smtp_user,
         smtp_from: form.smtp_from,
       };
       if (form.strava_client_secret) payload.strava_client_secret = form.strava_client_secret;
+      if (form.resend_api_key) payload.resend_api_key = form.resend_api_key;
       if (form.smtp_password) payload.smtp_password = form.smtp_password;
 
       const updated = await apiAdminUpdateSettings(payload);
       setSettings(updated);
-      setForm((prev) => ({ ...prev, strava_client_secret: "", smtp_password: "" }));
+      setForm((prev) => ({ ...prev, strava_client_secret: "", resend_api_key: "", smtp_password: "" }));
       setSaved(true);
     } catch (err) {
       setError(err.message);
@@ -511,14 +535,74 @@ function ApiConfigPanel() {
         </label>
       </section>
 
-      {/* SMTP section */}
+      {/* Resend section - preferred email provider */}
+      <section className="border border-slate-200 rounded-xl p-4 shadow-card space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+            <span aria-hidden>📧</span> {t("admin.apiConfig.resendSection")}
+          </h3>
+          <StatusBadge
+            configured={settings?.email_provider === "resend"}
+            t={t}
+            label={t("admin.apiConfig.resendActive")}
+            notLabel={
+              settings?.resend_api_key_set ? t("admin.apiConfig.configuredButInactive") : t("admin.apiConfig.stravaNotConfigured")
+            }
+          />
+        </div>
+        <p className="text-xs text-slate-400">{t("admin.apiConfig.resendHint")}</p>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.resendApiKey")}</span>
+          <div className="mt-1 flex gap-2">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={form.resend_api_key}
+              onChange={(e) => updateField("resend_api_key", e.target.value)}
+              placeholder={settings?.resend_api_key_set ? t("admin.apiConfig.clientSecretSet") : t("admin.apiConfig.clientSecretNotSet")}
+              className="flex-1 min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+            />
+            {settings?.resend_api_key_set && (
+              <button
+                type="button"
+                onClick={() => handleClearSecret("resend_api_key")}
+                className="shrink-0 text-xs text-red-600 font-semibold px-2.5 py-1.5 rounded-full border border-red-200 hover:bg-red-50 transition"
+              >
+                {t("admin.apiConfig.clear")}
+              </button>
+            )}
+          </div>
+          <span className="text-[11px] text-slate-400">{t("admin.apiConfig.secretHint")}</span>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-medium text-slate-600">{t("admin.apiConfig.resendFrom")}</span>
+          <input
+            type="text"
+            value={form.resend_from}
+            onChange={(e) => updateField("resend_from", e.target.value)}
+            placeholder="TrailFound <onboarding@resend.dev>"
+            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-trail-400 transition"
+          />
+          <span className="text-[11px] text-slate-400">{t("admin.apiConfig.resendFromHint")}</span>
+        </label>
+      </section>
+
+      {/* SMTP section - fallback, only used when Resend isn't configured */}
       <section className="border border-slate-200 rounded-xl p-4 shadow-card space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
             <span aria-hidden>✉️</span> {t("admin.apiConfig.smtpSection")}
           </h3>
-          <StatusBadge configured={settings?.smtp_configured} t={t} />
+          <StatusBadge
+            configured={settings?.email_provider === "smtp"}
+            t={t}
+            label={t("admin.apiConfig.smtpConfigured")}
+            notLabel={settings?.smtp_configured ? t("admin.apiConfig.configuredButInactive") : t("admin.apiConfig.smtpNotConfigured")}
+          />
         </div>
+        <p className="text-xs text-slate-400">{t("admin.apiConfig.smtpFallbackHint")}</p>
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block col-span-1">
@@ -603,5 +687,94 @@ function ApiConfigPanel() {
         </p>
       )}
     </form>
+  );
+}
+
+function EmailLogPanel() {
+  const { t } = useTranslation();
+  const [logs, setLogs] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [error, setError] = useState("");
+
+  async function load(filter) {
+    setError("");
+    try {
+      const data = await apiAdminListEmailLogs({ statusFilter: filter || undefined });
+      setLogs(data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  useEffect(() => {
+    load(statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
+
+  if (error) {
+    return <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-500">{t("admin.emailLog.intro")}</p>
+        <div className="flex rounded-full border border-slate-200 overflow-hidden text-xs shrink-0">
+          <button
+            type="button"
+            onClick={() => setStatusFilter("")}
+            className={`px-3 py-1 font-medium transition ${statusFilter === "" ? "bg-trail-600 text-white" : "bg-white text-slate-600"}`}
+          >
+            {t("admin.emailLog.filterAll")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("sent")}
+            className={`px-3 py-1 font-medium transition ${statusFilter === "sent" ? "bg-trail-600 text-white" : "bg-white text-slate-600"}`}
+          >
+            {t("admin.emailLog.filterSent")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter("failed")}
+            className={`px-3 py-1 font-medium transition ${statusFilter === "failed" ? "bg-trail-600 text-white" : "bg-white text-slate-600"}`}
+          >
+            {t("admin.emailLog.filterFailed")}
+          </button>
+        </div>
+      </div>
+
+      {logs === null ? (
+        <div className="flex items-center justify-center py-10">
+          <Spinner className="w-6 h-6 text-trail-600" />
+        </div>
+      ) : logs.length === 0 ? (
+        <p className="text-sm text-slate-400">{t("admin.emailLog.empty")}</p>
+      ) : (
+        <ul className="space-y-2">
+          {logs.map((log) => (
+            <li key={log.id} className="border border-slate-200 bg-white rounded-xl p-3 shadow-card space-y-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium text-slate-800 truncate">{log.subject}</p>
+                <span
+                  className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    log.status === "sent"
+                      ? "bg-trail-50 text-trail-700 border border-trail-200"
+                      : "bg-red-50 text-red-700 border border-red-200"
+                  }`}
+                >
+                  {log.status === "sent" ? t("admin.emailLog.statusSent") : t("admin.emailLog.statusFailed")}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {t("admin.emailLog.to")} {log.recipient} · {log.provider}
+                {log.created_at && ` · ${new Date(log.created_at).toLocaleString()}`}
+              </p>
+              {log.error && <p className="text-xs text-red-600 truncate">{log.error}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

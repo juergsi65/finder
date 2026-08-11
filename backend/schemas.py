@@ -144,14 +144,23 @@ class Token(BaseModel):
 
 class AppSettingsOut(BaseModel):
     """Non-secret values are echoed back as-is so the form can be
-    pre-filled; secrets (client secret, SMTP password) are never sent back
-    in plaintext - only whether one is currently set - so the settings
-    screen can't leak them to anyone with a browser devtools tab open."""
+    pre-filled; secrets (client secret, Resend API key, SMTP password) are
+    never sent back in plaintext - only whether one is currently set - so
+    the settings screen can't leak them to anyone with a browser devtools
+    tab open."""
 
     strava_client_id: Optional[str] = None
     strava_client_secret_set: bool = False
     strava_redirect_uri: Optional[str] = None
     strava_configured: bool = False
+
+    # Which provider send_email() will actually use right now: "resend",
+    # "smtp", or "none" - see settings_store.EmailConfig.provider.
+    email_provider: str = "none"
+
+    resend_api_key_set: bool = False
+    resend_from: Optional[str] = None
+    resend_configured: bool = False
 
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
@@ -172,11 +181,27 @@ class AppSettingsUpdate(BaseModel):
     strava_client_secret: Optional[str] = None
     strava_redirect_uri: Optional[str] = None
 
+    resend_api_key: Optional[str] = None
+    resend_from: Optional[str] = None
+
     smtp_host: Optional[str] = None
     smtp_port: Optional[int] = None
     smtp_user: Optional[str] = None
     smtp_password: Optional[str] = None
     smtp_from: Optional[str] = None
+
+
+class EmailLogOut(BaseModel):
+    id: int
+    recipient: str
+    subject: str
+    status: str
+    provider: str
+    error: Optional[str] = None
+    created_at: Optional[datetime.datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 class ProfileUpdate(BaseModel):

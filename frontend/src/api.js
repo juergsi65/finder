@@ -359,3 +359,13 @@ export async function apiAdminUpdateSettings(fields) {
   if (!res.ok) throw new Error(await extractErrorMessage(res, "Einstellungen konnten nicht gespeichert werden"));
   return res.json();
 }
+
+export async function apiAdminListEmailLogs({ statusFilter, limit = 50 } = {}) {
+  const params = new URLSearchParams();
+  if (statusFilter) params.set("status_filter", statusFilter);
+  if (limit) params.set("limit", limit);
+  const qs = params.toString();
+  const res = await fetch(`/api/admin/email-logs${qs ? `?${qs}` : ""}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "E-Mail-Protokoll konnte nicht geladen werden"));
+  return res.json();
+}

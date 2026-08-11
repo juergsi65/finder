@@ -166,8 +166,8 @@ class ConversationReadState(Base):
 
 class AppSettings(Base):
     """Admin-editable runtime configuration (Strava OAuth app credentials,
-    SMTP relay settings), stored in the database so an admin can set them
-    from the web UI instead of editing .env files on the server.
+    Resend/SMTP email settings), stored in the database so an admin can set
+    them from the web UI instead of editing .env files on the server.
 
     Always exactly one row (id=1) - a simple singleton settings table
     rather than a generic key/value store, since the set of settings is
@@ -176,12 +176,13 @@ class AppSettings(Base):
     bootstrap via .env/docker-compose and the DB only needs to hold
     overrides that were actually changed through the UI.
 
-    Security note: secrets (strava_client_secret, smtp_password) are
-    stored in plaintext in this table, protected only by the SQLite file's
-    filesystem permissions and the admin-only API around it - there's no
-    separate encryption-at-rest here. That's an accepted trade-off for a
-    small self-hosted prototype; a production deployment with stricter
-    requirements should pull these from a real secrets manager instead.
+    Security note: secrets (strava_client_secret, resend_api_key,
+    smtp_password) are stored in plaintext in this table, protected only
+    by the SQLite file's filesystem permissions and the admin-only API
+    around it - there's no separate encryption-at-rest here. That's an
+    accepted trade-off for a small self-hosted prototype; a production
+    deployment with stricter requirements should pull these from a real
+    secrets manager instead.
     """
 
     __tablename__ = "app_settings"
@@ -192,6 +193,15 @@ class AppSettings(Base):
     strava_client_secret = Column(String, nullable=True)
     strava_redirect_uri = Column(String, nullable=True)
 
+    # Resend (https://resend.com) - the preferred email provider when
+    # configured; see settings_store.EmailConfig.provider. resend_from
+    # defaults to "onboarding@resend.dev" (Resend's always-usable sandbox
+    # sender) if left blank, specifically so a fresh install can't 403 on
+    # its very first send just because no verified domain is set up yet.
+    resend_api_key = Column(String, nullable=True)
+    resend_from = Column(String, nullable=True)
+
+    # Legacy/fallback SMTP relay - used only when no Resend API key is set.
     smtp_host = Column(String, nullable=True)
     smtp_port = Column(Integer, nullable=True)
     smtp_user = Column(String, nullable=True)
@@ -199,3 +209,22 @@ class AppSettings(Base):
     smtp_from = Column(String, nullable=True)
 
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class EmailLog(Base):
+    """Audit trail of every outbound system email attempt (message relay
+    notifications, radius alerts, ...), regardless of which provider sent
+    it or whether it succeeded - written by email_utils.send_email so
+    admins have a concrete record of what was (or wasn't) actually
+    delivered, without needing to grep container logs."""
+
+    __tablename__ = "email_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recipient = Column(String, nullable=False)
+    subject = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    status = Column(String, nullable=False, index=True)  # "sent" | "failed"
+    provider = Column(String, nullable=False)  # "resend" | "smtp"
+    error = Column(String, nullable=True)  # failure detail, NULL when status="sent"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
