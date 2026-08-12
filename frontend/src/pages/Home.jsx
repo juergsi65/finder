@@ -110,22 +110,39 @@ export default function Home() {
     setLoadingItems(true);
     setError("");
 
+    // Found items load immediately, independent of geolocation - the map
+    // must never sit empty just because the browser hasn't resolved (or
+    // never will resolve, e.g. permission denied, no provider, or a
+    // browser that silently drops the request instead of firing either
+    // callback) a location. `lat`/`lng` only change the *order* the
+    // backend returns items in (nearest-first) plus a `distance_m`
+    // annotation - never which items come back - so if geolocation
+    // resolves after this plain fetch, re-fetching with position and
+    // overwriting `items` is a safe "last write wins": at worst a brief
+    // re-sort, never a data loss or a stuck-empty map.
+    getFoundItems({})
+      .then(setItems)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoadingItems(false));
+
     function fetchItemsFor(pos) {
       setUserPos(pos);
       setLocating(false);
-      getFoundItems(pos ? { lat: pos[0], lng: pos[1] } : {})
+      if (!pos) return;
+      setLoadingItems(true);
+      getFoundItems({ lat: pos[0], lng: pos[1] })
         .then(setItems)
         .catch((err) => setError(err.message))
         .finally(() => setLoadingItems(false));
     }
 
     if (!navigator.geolocation) {
-      fetchItemsFor(null);
+      setLocating(false);
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => fetchItemsFor([pos.coords.latitude, pos.coords.longitude]),
-      () => fetchItemsFor(null),
+      () => setLocating(false),
       { enableHighAccuracy: true, timeout: 8000 }
     );
   }
