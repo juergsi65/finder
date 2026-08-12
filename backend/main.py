@@ -30,6 +30,8 @@ from schemas import (
     FoundItemOut,
     SearchResponse,
     CATEGORIES,
+    validate_category_value,
+    validate_icon_value,
     UserCreate,
     UserOut,
     Token,
@@ -107,8 +109,18 @@ def health():
 
 
 @app.get("/api/categories")
-def get_categories():
-    return CATEGORIES
+def get_categories(db: Session = Depends(get_db)):
+    """Category *suggestions* for the picker's autocomplete - the default
+    seed list plus every custom category any user has already typed for a
+    found/lost/stolen item, so suggestions grow organically. This is no
+    longer a whitelist: creating an item never rejects a category that
+    isn't in this list (see validate_category_value)."""
+    used = {row[0] for row in db.query(FoundItem.category).distinct().all() if row[0]}
+    used |= {row[0] for row in db.query(LostItemReport.category).distinct().all() if row[0]}
+    # Defaults first (stable order for the picker's fixed quick-select
+    # buttons), then any custom ones not already covered, alphabetically.
+    custom = sorted(c for c in used if c not in CATEGORIES)
+    return CATEGORIES + custom
 
 
 # --- Found items ----------------------------------------------------------
@@ -170,6 +182,7 @@ def get_found_item(item_id: int, db: Session = Depends(get_db)):
 def create_found_item(
     title: str = Form(...),
     category: str = Form(...),
+    icon: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     lat: float = Form(...),
     lng: float = Form(...),
@@ -178,8 +191,11 @@ def create_found_item(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if category not in CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
+    try:
+        category = validate_category_value(category)
+        icon = validate_icon_value(icon)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     title = title.strip()
     if not title:
@@ -207,6 +223,7 @@ def create_found_item(
     item = FoundItem(
         title=title,
         category=category,
+        icon=icon,
         description=description,
         photo_path=photo_path,
         lat=lat,
@@ -324,6 +341,7 @@ def create_lost_item_report(
     report_type: str = Form(...),
     title: str = Form(...),
     category: str = Form(...),
+    icon: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     serial_number: Optional[str] = Form(None),
     lat: float = Form(...),
@@ -339,8 +357,11 @@ def create_lost_item_report(
     users - see _notify_nearby_users."""
     if report_type not in REPORT_TYPES:
         raise HTTPException(status_code=400, detail=f"Ungültiger Meldungstyp: {report_type}")
-    if category not in CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
+    try:
+        category = validate_category_value(category)
+        icon = validate_icon_value(icon)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     title = title.strip()
     if not title:
@@ -369,6 +390,7 @@ def create_lost_item_report(
         report_type=report_type,
         title=title,
         category=category,
+        icon=icon,
         description=description,
         serial_number=(serial_number.strip() or None) if serial_number else None,
         photo_path=photo_path,
@@ -383,6 +405,41 @@ def create_lost_item_report(
     background_tasks.add_task(_notify_nearby_users_task, report.id)
 
     return report
+
+
+@app.get("/api/lost-items", response_model=List[LostItemReportOut])
+def list_lost_items(
+    report_type: Optional[str] = None,
+    category: Optional[str] = None,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    radius_m: Optional[float] = None,
+    db: Session = Depends(get_db),
+):
+    """All lost/stolen reports, public like GET /api/found-items - the
+    whole point of a report is that *other* people watch for the item, so
+    it belongs on the shared map next to found-item pins, not hidden
+    behind the reporter's own account. Same optional lat/lng/radius_m
+    "how far away" annotation as found-items."""
+    if report_type and report_type not in REPORT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Ungültiger Meldungstyp: {report_type}")
+    if radius_m is not None and (radius_m <= 0 or radius_m > MAX_NEARBY_RADIUS_M):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Radius muss zwischen 1 und {int(MAX_NEARBY_RADIUS_M)} Metern liegen.",
+        )
+
+    query = db.query(LostItemReport)
+    if report_type:
+        query = query.filter(LostItemReport.report_type == report_type)
+    if category:
+        query = query.filter(LostItemReport.category == category)
+    reports = query.order_by(LostItemReport.created_at.desc()).all()
+
+    if lat is None or lng is None or radius_m is None:
+        return reports
+
+    return [r for r in reports if haversine_distance_m(lat, lng, r.lat, r.lng) <= radius_m]
 
 
 @app.get("/api/lost-items/mine", response_model=List[LostItemReportOut])
@@ -482,9 +539,9 @@ async def search_gpx(
     clean 400 with a specific German message - never a raw traceback or an
     unhandled 500.
     """
-    if category and category not in CATEGORIES:
-        raise HTTPException(status_code=400, detail=f"Unbekannte Kategorie: {category}")
-
+    # category is just a filter here (not a create), so an unrecognized
+    # value simply matches nothing rather than erroring - no whitelist to
+    # enforce now that categories are free text.
     if radius_m <= 0 or radius_m > MAX_RADIUS_M:
         raise HTTPException(
             status_code=400,

@@ -3,11 +3,45 @@ import re
 from typing import Optional, List
 from pydantic import BaseModel, field_validator
 
+# Default category suggestions offered by the picker - no longer a hard
+# whitelist (see validate_category_value below): any user can type a
+# custom category when reporting an item. GET /api/categories merges this
+# list with whatever custom categories are already in use, so the
+# suggestions grow organically instead of needing a code change.
 CATEGORIES = ["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"]
 ROLES = ["user", "verein"]  # "admin" is never self-selectable at registration
 REPORT_TYPES = ["lost", "stolen"]
 
+MAX_CATEGORY_LEN = 60
+MAX_ICON_LEN = 16
+
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def validate_category_value(v: str) -> str:
+    """Shared by every endpoint that accepts a category as a raw Form
+    field (found items, lost items) rather than through a pydantic model -
+    just a sanity check now, not a whitelist membership test."""
+    v = v.strip()
+    if not v:
+        raise ValueError("Bitte eine Kategorie angeben.")
+    if len(v) > MAX_CATEGORY_LEN:
+        raise ValueError(f"Kategorie ist zu lang (max. {MAX_CATEGORY_LEN} Zeichen).")
+    return v
+
+
+def validate_icon_value(v: Optional[str]) -> Optional[str]:
+    """Emoji (or short icon string) chosen for one specific item. Blank
+    normalizes to None so the frontend's category-based fallback kicks in
+    instead of storing an empty string."""
+    if v is None:
+        return None
+    v = v.strip()
+    if not v:
+        return None
+    if len(v) > MAX_ICON_LEN:
+        raise ValueError(f"Icon ist zu lang (max. {MAX_ICON_LEN} Zeichen).")
+    return v
 
 
 # --- Found items -------------------------------------------------------
@@ -28,6 +62,9 @@ class FoundItemOut(BaseModel):
     id: int
     title: str
     category: str
+    # User-picked emoji for this item; None falls back to the frontend's
+    # name-based default (see categoryIcons.js) for items predating this.
+    icon: Optional[str] = None
     description: Optional[str] = None
     # Photo is mandatory for *new* reports (enforced in the create endpoint),
     # but plenty of real rows predate that rule - it used to be an optional
@@ -245,6 +282,7 @@ class LostItemReportOut(BaseModel):
     report_type: str
     title: str
     category: str
+    icon: Optional[str] = None
     description: Optional[str] = None
     serial_number: Optional[str] = None
     photo_path: Optional[str] = None
@@ -252,6 +290,10 @@ class LostItemReportOut(BaseModel):
     lng: float
     occurred_date: Optional[datetime.date] = None
     created_at: Optional[datetime.datetime] = None
+    # Added so lost/stolen reports can now be plotted on the shared map
+    # (GET /api/lost-items) with the same "who reported this" attribution
+    # found items already show - never the reporter's email.
+    reporter: Optional[ReporterOut] = None
 
     class Config:
         from_attributes = True

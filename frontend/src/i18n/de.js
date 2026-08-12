@@ -22,6 +22,7 @@ export default {
     contactFinder: "Finder kontaktieren",
     away: "entfernt",
     foundOn: "Gefunden am",
+    tapMapHint: "Auf die Karte tippen für alle Aktionen",
     onboarding: {
       title: "Willkommen bei TrailFound 👋",
       intro: "So funktioniert's in 3 Schritten:",
@@ -304,6 +305,36 @@ export default {
     Pumpe: "Pumpe",
     Brille: "Brille",
     Sonstiges: "Sonstiges",
+  },
+  category: {
+    custom: "Eigene",
+    customName: "Kategorie-Name",
+    customNamePlaceholder: "z.B. Skateboard",
+    customIcon: "Icon/Emoji",
+    customIconPlaceholder: "Eigenes Emoji eingeben oder oben auswählen",
+  },
+  mapMenu: {
+    heading: "Was möchtest du tun?",
+    reportFound: "Etwas gefunden",
+    reportLost: "Gegenstand verloren melden",
+    reportStolen: "Diebstahl melden",
+    addNote: "Notiz-Pin setzen",
+  },
+  layers: {
+    heading: "Ebenen & Filter",
+    types: "Kartenebenen",
+    type: {
+      found: "Gefundene Gegenstände",
+      lost: "Verlustmeldungen",
+      stolen: "Diebstahlmeldungen",
+      pins: "Notiz-Pins",
+    },
+    categories: "Kategorien",
+    showAll: "Alle anzeigen",
+  },
+  feed: {
+    heading: "Nachrichten",
+    empty: "Noch keine Nachrichten.",
   },
   common: {
     back: "Zurück",

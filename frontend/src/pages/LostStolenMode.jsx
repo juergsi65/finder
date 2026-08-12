@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import MapPicker from "../components/MapPicker.jsx";
-import CategoryPicker from "../components/CategoryPicker.jsx";
+import CategoryCreator from "../components/CategoryCreator.jsx";
 import PhotoDropzone from "../components/PhotoDropzone.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import Spinner from "../components/Spinner.jsx";
 import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
-import { createLostItemReport } from "../api.js";
+import { getCategories, createLostItemReport } from "../api.js";
 import { ALERT_RADIUS_KM } from "../constants.js";
 
 const CATEGORIES_FALLBACK = ["Trinkflasche", "Radcomputer", "Pumpe", "Brille", "Sonstiges"];
@@ -19,11 +19,21 @@ function todayIso() {
 export default function LostStolenMode() {
   const { user } = useAuth();
   const { t } = useTranslation();
-  const [reportType, setReportType] = useState("lost");
+  const routerLocation = useLocation();
+  // Prefilled when arriving from Home's map-click action menu - both the
+  // location and (if "Gestohlen melden" specifically was chosen there)
+  // the report type carry over, same "confirm on this page's own picker"
+  // pattern as FinderMode.
+  const prefillLatLng = routerLocation.state?.prefillLatLng || null;
+  const prefillType = routerLocation.state?.reportType || "lost";
+
+  const [categories, setCategories] = useState(CATEGORIES_FALLBACK);
+  const [reportType, setReportType] = useState(prefillType);
   const [pin, setPin] = useState(null);
-  const [flyToTarget, setFlyToTarget] = useState(null);
+  const [flyToTarget, setFlyToTarget] = useState(prefillLatLng ? [prefillLatLng.lat, prefillLatLng.lng] : null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES_FALLBACK[0]);
+  const [icon, setIcon] = useState(null);
   const [serialNumber, setSerialNumber] = useState("");
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState(null);
@@ -33,6 +43,15 @@ export default function LostStolenMode() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => {
+    getCategories()
+      .then((cats) => {
+        setCategories(cats);
+        setCategory((prev) => prev || cats[0]);
+      })
+      .catch(() => {});
+  }, []);
 
   function handleLocate() {
     if (!navigator.geolocation) {
@@ -74,6 +93,7 @@ export default function LostStolenMode() {
         reportType,
         title,
         category,
+        icon,
         description,
         serialNumber: reportType === "stolen" ? serialNumber : "",
         lat: pin.lat,
@@ -85,6 +105,7 @@ export default function LostStolenMode() {
       setSuccess(true);
       setPin(null);
       setTitle("");
+      setIcon(null);
       setSerialNumber("");
       setDescription("");
       setPhoto(null);
@@ -191,7 +212,16 @@ export default function LostStolenMode() {
             />
           </div>
 
-          <CategoryPicker categories={CATEGORIES_FALLBACK} value={category} onChange={setCategory} label={t("finder.category")} />
+          <CategoryCreator
+            categories={categories}
+            category={category}
+            icon={icon}
+            onChange={({ category: c, icon: i }) => {
+              setCategory(c);
+              setIcon(i);
+            }}
+            label={t("finder.category")}
+          />
 
           {reportType === "stolen" && (
             <div>

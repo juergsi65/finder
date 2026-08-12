@@ -5,13 +5,15 @@ import TopLoadingBar from "../components/TopLoadingBar.jsx";
 import Spinner from "../components/Spinner.jsx";
 import OnboardingModal from "../components/OnboardingModal.jsx";
 import PinModal from "../components/PinModal.jsx";
+import MapActionMenu from "../components/MapActionMenu.jsx";
+import LayerPanel from "../components/LayerPanel.jsx";
+import LiveFeedPanel from "../components/LiveFeedPanel.jsx";
 import { useAuth } from "../AuthContext.jsx";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
-import { getCategories, getFoundItems, getPins } from "../api.js";
-import { categoryIcon } from "../categoryIcons.js";
+import { getCategories, getFoundItems, getLostItems, getPins } from "../api.js";
+import { resolveIcon } from "../categoryIcons.js";
 import { DEFAULT_CENTER, NEARBY_RADIUS_M } from "../constants.js";
 
-const ALL_CATEGORIES = "__all__";
 const ONBOARDING_SEEN_KEY = "trailfound_onboarding_seen";
 
 export default function Home() {
@@ -19,15 +21,24 @@ export default function Home() {
   const { t } = useTranslation();
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
+  const [lostItems, setLostItems] = useState([]);
   const [pins, setPins] = useState([]);
   const [pinModal, setPinModal] = useState(null);
+  const [mapMenuAt, setMapMenuAt] = useState(null);
+  const [showLayers, setShowLayers] = useState(false);
+  const [showFeed, setShowFeed] = useState(false);
   const [userPos, setUserPos] = useState(null);
   const [locating, setLocating] = useState(true);
   const [loadingItems, setLoadingItems] = useState(true);
   const [error, setError] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [flyToTarget, setFlyToTarget] = useState(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // "Hidden set" model (nothing hidden by default) for both axes, so newly
+  // loaded categories/types are visible automatically without this needing
+  // to know about them in advance.
+  const [hiddenTypes, setHiddenTypes] = useState(() => new Set());
+  const [hiddenCategories, setHiddenCategories] = useState(() => new Set());
 
   useEffect(() => {
     getCategories()
@@ -39,9 +50,16 @@ export default function Home() {
     getPins()
       .then(setPins)
       .catch(() => {});
+    getLostItems()
+      .then(setLostItems)
+      .catch(() => {});
   }, []);
 
   function handleMapClick(latlng) {
+    setMapMenuAt(latlng);
+  }
+
+  function handleNote(latlng) {
     if (!user) {
       setError(t("pin.loginRequired"));
       setTimeout(() => setError((prev) => (prev === t("pin.loginRequired") ? "" : prev)), 3500);
@@ -135,15 +153,75 @@ export default function Home() {
     );
   }
 
-  const filteredItems = useMemo(
-    () => (categoryFilter === ALL_CATEGORIES ? items : items.filter((i) => i.category === categoryFilter)),
-    [items, categoryFilter]
+  function toggleType(key) {
+    setHiddenTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  function toggleCategory(name) {
+    setHiddenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  // Category list + counts for the layer panel, built from whatever's
+  // actually loaded right now (found + lost/stolen combined) rather than
+  // the full suggestion list from getCategories(), so it only ever shows
+  // filters that currently do something.
+  const categoryStats = useMemo(() => {
+    const stats = new Map();
+    function tally(list) {
+      for (const entry of list) {
+        const name = entry.category;
+        if (!name) continue;
+        const prev = stats.get(name);
+        if (prev) prev.count += 1;
+        else stats.set(name, { name, icon: resolveIcon(entry), count: 1 });
+      }
+    }
+    tally(items);
+    tally(lostItems);
+    return [...stats.values()].sort((a, b) => b.count - a.count);
+  }, [items, lostItems]);
+
+  const typeCounts = useMemo(
+    () => ({
+      found: items.length,
+      lost: lostItems.filter((r) => r.report_type === "lost").length,
+      stolen: lostItems.filter((r) => r.report_type === "stolen").length,
+      pins: pins.length,
+    }),
+    [items, lostItems, pins]
   );
+
+  const visibleItems = useMemo(() => {
+    if (hiddenTypes.has("found")) return [];
+    return items.filter((i) => !hiddenCategories.has(i.category));
+  }, [items, hiddenTypes, hiddenCategories]);
+
+  const visibleLostItems = useMemo(() => {
+    return lostItems.filter((r) => {
+      if (hiddenTypes.has(r.report_type)) return false;
+      if (hiddenCategories.has(r.category)) return false;
+      return true;
+    });
+  }, [lostItems, hiddenTypes, hiddenCategories]);
+
+  const visiblePins = useMemo(() => (hiddenTypes.has("pins") ? [] : pins), [pins, hiddenTypes]);
 
   const nearbyCount = useMemo(() => {
     if (!userPos) return null;
     return items.filter((i) => typeof i.distance_m === "number" && i.distance_m <= NEARBY_RADIUS_M).length;
   }, [items, userPos]);
+
+  const activeFilterCount = hiddenTypes.size + hiddenCategories.size;
 
   return (
     <div className="h-full flex flex-col relative isolate">
@@ -152,8 +230,9 @@ export default function Home() {
       <FoundItemsMap
         center={userPos || DEFAULT_CENTER}
         userPos={userPos}
-        items={filteredItems}
-        pins={pins}
+        items={visibleItems}
+        lostItems={visibleLostItems}
+        pins={visiblePins}
         flyToTarget={flyToTarget}
         onMapClick={handleMapClick}
         onPinClick={handlePinClick}
@@ -163,7 +242,7 @@ export default function Home() {
           the floating UI doesn't sprawl edge-to-edge on wide desktops. */}
       <div className="absolute inset-0 z-[1000] flex justify-center pointer-events-none">
         <div className="relative w-full max-w-3xl h-full">
-          {/* Nearby-count banner + category filter, floating over the map */}
+          {/* Nearby-count banner, floating over the map */}
           <div className="absolute top-3 left-3 right-3 flex flex-col gap-2 pointer-events-auto">
             <div className="bg-white/95 backdrop-blur rounded-2xl shadow-float px-4 py-3 flex items-start gap-2">
               <div className="min-w-0 flex-1">
@@ -195,31 +274,40 @@ export default function Home() {
                 ?
               </button>
             </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              <FilterChip
-                active={categoryFilter === ALL_CATEGORIES}
-                onClick={() => setCategoryFilter(ALL_CATEGORIES)}
-                icon="🗺️"
-                label={t("home.all")}
-              />
-              {categories.map((c) => (
-                <FilterChip
-                  key={c}
-                  active={categoryFilter === c}
-                  onClick={() => setCategoryFilter(c)}
-                  icon={categoryIcon(c)}
-                  label={t(`categories.${c}`)}
-                />
-              ))}
-            </div>
           </div>
 
           {/* Floating actions */}
           <button
             type="button"
+            onClick={() => setShowLayers(true)}
+            className="absolute top-24 right-3 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
+            aria-label={t("layers.heading")}
+            title={t("layers.heading")}
+          >
+            🗂️
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-trail-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {user && (
+            <button
+              type="button"
+              onClick={() => setShowFeed(true)}
+              className="absolute top-24 left-3 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
+              aria-label={t("feed.heading")}
+              title={t("feed.heading")}
+            >
+              💬
+            </button>
+          )}
+
+          <button
+            type="button"
             onClick={handleLocate}
-            className="absolute bottom-24 right-3 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
+            className="absolute bottom-5 right-3 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
             aria-label={t("home.locateMe")}
           >
             🎯
@@ -227,28 +315,37 @@ export default function Home() {
 
           <Link
             to="/suche"
-            className="absolute bottom-24 left-3 pointer-events-auto bg-white hover:bg-slate-50 text-trail-700 border border-trail-600 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
+            className="absolute bottom-5 right-16 pointer-events-auto bg-white shadow-float rounded-full w-11 h-11 flex items-center justify-center text-lg border border-slate-200 active:scale-95 transition"
+            aria-label={t("nav.search")}
+            title={t("nav.search")}
           >
-            <span aria-hidden>🔍</span> {t("nav.search")}
+            🔍
           </Link>
 
-          <Link
-            to="/verlust"
-            className="absolute bottom-5 left-3 pointer-events-auto bg-white hover:bg-red-50 text-red-600 border border-red-300 font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
-          >
-            <span aria-hidden>🚨</span> {t("home.lostButton")}
-          </Link>
-
-          <Link
-            to="/gefunden"
-            className="absolute bottom-5 right-3 pointer-events-auto bg-trail-600 hover:bg-trail-700 text-white font-semibold rounded-full shadow-float px-4 py-3 flex items-center gap-2 active:scale-95 transition"
-          >
-            <span aria-hidden>📍</span> {t("home.reportButton")}
-          </Link>
+          <div className="absolute bottom-5 left-3 pointer-events-auto bg-white/95 backdrop-blur text-xs text-slate-500 rounded-full shadow-float px-3.5 py-2.5 flex items-center gap-1.5">
+            <span aria-hidden>👆</span> {t("home.tapMapHint")}
+          </div>
         </div>
       </div>
 
       {showOnboarding && <OnboardingModal onClose={dismissOnboarding} />}
+
+      {mapMenuAt && <MapActionMenu latlng={mapMenuAt} onClose={() => setMapMenuAt(null)} onNote={handleNote} />}
+
+      {showLayers && (
+        <LayerPanel
+          counts={typeCounts}
+          hiddenTypes={hiddenTypes}
+          onToggleType={toggleType}
+          categories={categoryStats}
+          hiddenCategories={hiddenCategories}
+          onToggleCategory={toggleCategory}
+          onResetCategories={() => setHiddenCategories(new Set())}
+          onClose={() => setShowLayers(false)}
+        />
+      )}
+
+      {showFeed && <LiveFeedPanel onClose={() => setShowFeed(false)} />}
 
       {pinModal && (
         <PinModal
@@ -261,20 +358,5 @@ export default function Home() {
         />
       )}
     </div>
-  );
-}
-
-function FilterChip({ active, onClick, icon, label }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border shadow-sm transition ${
-        active ? "bg-trail-600 border-trail-600 text-white" : "bg-white/95 border-slate-200 text-slate-700 hover:border-trail-300"
-      }`}
-    >
-      <span aria-hidden>{icon}</span>
-      {label}
-    </button>
   );
 }

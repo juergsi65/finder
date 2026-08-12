@@ -44,3 +44,71 @@ body {
     transform: scale(1);
   }
 }
+
+/* Map "signal" markers (see leafletIcons.js's buildBadgeIcon) - a plain
+   div/emoji badge instead of Leaflet's default pin image so it can carry
+   per-type color + animation. Kept as real CSS (not Tailwind utilities)
+   because the pulse/glow keyframes need custom per-variant colors. */
+.map-badge-wrapper {
+  background: transparent;
+  border: none;
+}
+
+.map-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 19px;
+  line-height: 1;
+  background: #fff;
+  border: 2.5px solid #94a3b8;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 0.3);
+  cursor: pointer;
+}
+
+/* Found items: calm, "safe" - the app's trail-green brand color, no animation. */
+.map-badge--found {
+  border-color: #3a6a4d;
+}
+
+/* Lost reports: red family per spec, gentler pulse than "stolen" so the
+   two remain distinguishable at a glance without opening the popup. */
+.map-badge--lost {
+  border-color: #ef4444;
+  animation: badgePulseLost 2.2s ease-in-out infinite;
+}
+
+/* Stolen reports: the most urgent signal on the map - deep red, fast
+   pulse + a slight scale "alarm" effect. */
+.map-badge--stolen {
+  border-color: #b91c1c;
+  animation: badgePulseStolen 1.3s ease-in-out infinite;
+}
+
+/* Note pins: neutral, deliberately calm/uninvolved in the alert coloring. */
+.map-badge--pin {
+  border-color: #7c3aed;
+}
+
+@keyframes badgePulseLost {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgb(15 23 42 / 0.3), 0 0 0 0 rgb(239 68 68 / 0.45);
+  }
+  50% {
+    box-shadow: 0 2px 6px rgb(15 23 42 / 0.3), 0 0 0 7px rgb(239 68 68 / 0);
+  }
+}
+
+@keyframes badgePulseStolen {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgb(15 23 42 / 0.3), 0 0 0 0 rgb(185 28 28 / 0.6);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 2px 6px rgb(15 23 42 / 0.3), 0 0 0 10px rgb(185 28 28 / 0);
+    transform: scale(1.1);
+  }
+}

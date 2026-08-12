@@ -85,6 +85,8 @@ def _column_migrations():
         ("app_settings", "resend_api_key", "VARCHAR"),
         ("app_settings", "resend_from", "VARCHAR"),
         ("users", "last_seen_at", "DATETIME"),
+        ("found_items", "icon", "VARCHAR"),
+        ("lost_item_reports", "icon", "VARCHAR"),
     ]
 
 

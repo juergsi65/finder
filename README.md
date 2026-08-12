@@ -7,38 +7,52 @@ ein datenschutzfreundliches internes Nachrichtensystem.
 
 ## Funktionen im Überblick
 
-1. **Startseite = Karte.** Beim Öffnen zeigt TrailFound sofort eine
-   interaktive Karte mit allen aktiven Fund-Pins in der Umgebung, plus einer
-   Zahl wie "5 Gegenstände in deiner Nähe (5 km)". Kategorie-Chips filtern
-   die Karte visuell.
-2. **Sprache:** Deutsch (Standard) und Englisch per Umschalter oben rechts,
+1. **Startseite = Karte, Karte im Fokus.** Beim Öffnen zeigt TrailFound sofort
+   eine interaktive Karte mit Fund-Pins, Verlust-/Diebstahlmeldungen und
+   Notiz-Pins in der Umgebung, plus einer Zahl wie "5 Gegenstände in deiner
+   Nähe (5 km)". Verlust-/Diebstahlmeldungen erhalten eine auffällige, rot
+   pulsierende Markierung, damit sie sofort ins Auge fallen; gefundene
+   Gegenstände sind ruhig grün, Notiz-Pins violett. Ein Klick auf eine freie
+   Stelle der Karte öffnet ein Auswahlmenü ("Etwas gefunden" /
+   "Verloren melden" / "Diebstahl melden" / "Notiz-Pin setzen") - ein
+   einheitlicher Einstiegspunkt für alle Meldearten, statt separater
+   Formulare pro Funktion. Ein Ebenen-Filter blendet Typen (gefunden/
+   verloren/gestohlen/Notizen) und einzelne Kategorien individuell ein/aus.
+2. **Eigene Kategorien & Icons.** Beim Melden (gefunden/verloren/gestohlen)
+   ist die Kategorie kein starres Dropdown mehr - Nutzer:innen können eine
+   eigene Kategorie mit frei wählbarem Emoji/Icon anlegen. Einmal genutzte
+   eigene Kategorien erscheinen danach als Vorschlag für alle.
+3. **Live-Nachrichten-Panel.** Ein Panel direkt über der Karte zeigt die
+   eigenen Unterhaltungen inkl. Ungelesen-Badge, ohne die Kartenansicht zu
+   verlassen.
+4. **Sprache:** Deutsch (Standard) und Englisch per Umschalter oben rechts,
    inkl. nativer Formularvalidierung in der gewählten Sprache.
-3. **Konten & Rollen:** Registrierung/Login mit JWT-Session und
+5. **Konten & Rollen:** Registrierung/Login mit JWT-Session und
    bcrypt-gehashten Passwörtern. Rollen: **Admin** (volle Moderation +
    Nutzerverwaltung), **Standard-Nutzer** und **Verein/Gruppe** (z.B. lokale
    Wandervereine, mit eigenem Anzeigenamen). Das erste registrierte Konto
    wird automatisch Admin; alle weiteren Registrierungen sind niemals Admin.
-4. **Fund melden** (Login erforderlich): Pflichtfelder Titel, Kategorie und
+6. **Fund melden** (Login erforderlich): Pflichtfelder Titel, Kategorie und
    Foto; Funddatum wird automatisch mit "heute" vorbelegt und ist editierbar;
    Standort per Klick auf die Karte; Beschreibung optional. Der Foto-Upload
    zeigt einen echten Prozent-Fortschrittsbalken.
-5. **Suchen:** Suchwort (z.B. "Garmin Uhr") + GPX-Track der eigenen Tour
+7. **Suchen:** Suchwort (z.B. "Garmin Uhr") + GPX-Track der eigenen Tour
    hochladen - die App gleicht **jeden Meter der Route** (nicht nur die
    aufgezeichneten GPS-Punkte) mit aktiven Fund-Pins ab und zeigt
    ausschließlich Treffer im Umkreis. Während des Uploads läuft ein
    Prozent-Fortschrittsbalken, während der serverseitigen Berechnung ein
    Ladebalken. Alternative: die Umkreissuche direkt auf der Startseiten-Karte.
-6. **Strava-Add-on:** "Mit Strava verbinden" im Profil (echter OAuth-2.0-Flow)
+8. **Strava-Add-on:** "Mit Strava verbinden" im Profil (echter OAuth-2.0-Flow)
    und der Button "Hast du bei deiner heutigen Aktivität etwas verloren?" auf
    der Such-Seite - ruft die heutige Strava-Aktivität ab und gleicht sie mit
    derselben Logik wie ein GPX-Upload ab. Erfordert eine eigene
    Strava-API-App (siehe unten) - ohne Konfiguration bleibt der Button sauber
    deaktiviert.
-7. **Finder kontaktieren:** Internes Nachrichtensystem pro Fund-Pin. Weder
+9. **Finder kontaktieren:** Internes Nachrichtensystem pro Fund-Pin. Weder
    Sucher:in noch Finder:in sehen jemals die E-Mail-Adresse der Gegenseite -
    der Server leitet neue Nachrichten optional per System-E-Mail weiter
    (SMTP konfigurierbar).
-8. **Archiv:** Finder:in oder Admin können einen Fund als "erledigt" markieren
+10. **Archiv:** Finder:in oder Admin können einen Fund als "erledigt" markieren
    - er verschwindet sofort aus Karte und Suche, bleibt aber im
    Admin-Archiv einsehbar und wiederherstellbar.
 
@@ -242,7 +256,7 @@ docker compose up -d --build
 
 | Methode | Pfad | Zweck |
 |---------|------|-------|
-| GET | `/api/categories` | Verfügbare Kategorien |
+| GET | `/api/categories` | Kategorie-Vorschläge (fixe Grundliste + alle bereits genutzten eigenen Kategorien) |
 | GET | `/api/found-items` | Aktive Fund-Pins (optional `?category=`, `?lat=&lng=` inkl. `distance_m` sortiert, `?radius_m=`) |
 | GET | `/api/found-items/{id}` | Einzelner Fund-Pin |
 | POST | `/api/found-items` | Fund melden (Login erforderlich; Titel/Kategorie/Foto Pflicht) |
@@ -258,6 +272,7 @@ docker compose up -d --build
 | POST | `/api/strava/disconnect` | Strava-Verbindung trennen |
 | GET | `/api/strava/today-track` | Heutige Strava-Aktivität abgleichen |
 | POST | `/api/lost-items` | Verlust/Diebstahl melden - löst Umkreis-Alarm-E-Mails aus |
+| GET | `/api/lost-items` | Alle Verlust-/Diebstahlmeldungen, öffentlich (optional `?report_type=`, `?category=`, `?lat=&lng=&radius_m=`) - Grundlage für die Signal-Pins auf der Karte |
 | GET | `/api/lost-items/mine` | Eigene Verlust-/Diebstahlmeldungen |
 | GET/POST | `/api/pins` | Notiz-Pins lesen (öffentlich) / erstellen (Login erforderlich) |
 | GET/PATCH/DELETE | `/api/pins/{id}` | Einzelnen Notiz-Pin lesen / bearbeiten / löschen - Ersteller:in oder Admin |

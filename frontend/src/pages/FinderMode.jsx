@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Marker, Popup } from "react-leaflet";
 import MapPicker from "../components/MapPicker.jsx";
-import CategoryPicker from "../components/CategoryPicker.jsx";
+import CategoryCreator from "../components/CategoryCreator.jsx";
 import PhotoDropzone from "../components/PhotoDropzone.jsx";
 import ProgressBar from "../components/ProgressBar.jsx";
 import Spinner from "../components/Spinner.jsx";
@@ -17,12 +17,20 @@ function todayIso() {
 export default function FinderMode() {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const routerLocation = useLocation();
+  // Prefilled when arriving from Home's map-click action menu ("Fund
+  // melden" chosen for a specific spot) - the map still starts centered
+  // there, but the pin isn't auto-placed, so the user always confirms/
+  // adjusts the exact position on this page's own picker before submitting.
+  const prefillLatLng = routerLocation.state?.prefillLatLng || null;
+
   const [categories, setCategories] = useState([]);
   const [existingItems, setExistingItems] = useState([]);
   const [pin, setPin] = useState(null);
-  const [flyToTarget, setFlyToTarget] = useState(null);
+  const [flyToTarget, setFlyToTarget] = useState(prefillLatLng ? [prefillLatLng.lat, prefillLatLng.lng] : null);
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
+  const [icon, setIcon] = useState(null);
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState(null);
   const [foundDate, setFoundDate] = useState(todayIso);
@@ -88,6 +96,7 @@ export default function FinderMode() {
       const created = await createFoundItem({
         title,
         category,
+        icon,
         description,
         lat: pin.lat,
         lng: pin.lng,
@@ -99,6 +108,7 @@ export default function FinderMode() {
       setSuccess(true);
       setPin(null);
       setTitle("");
+      setIcon(null);
       setDescription("");
       setPhoto(null);
       setFoundDate(todayIso());
@@ -185,7 +195,16 @@ export default function FinderMode() {
           />
         </div>
 
-        <CategoryPicker categories={categories} value={category} onChange={setCategory} label={t("finder.category")} />
+        <CategoryCreator
+          categories={categories}
+          category={category}
+          icon={icon}
+          onChange={({ category: c, icon: i }) => {
+            setCategory(c);
+            setIcon(i);
+          }}
+          label={t("finder.category")}
+        />
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-2">{t("finder.photoRequired")}</label>

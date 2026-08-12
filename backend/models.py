@@ -74,7 +74,18 @@ class FoundItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
+    # Free text since the alpha release - no longer constrained to a fixed
+    # backend whitelist (see schemas.validate_category). GET /api/categories
+    # still returns a set of suggestions (defaults + everything already in
+    # use) for the picker's autocomplete, but creating an item never
+    # rejects a category it hasn't seen before.
     category = Column(String, nullable=False, index=True)
+    # User-chosen emoji for this specific item, shown on the map instead of
+    # the generic per-category icon - lets two "Sonstiges" items look
+    # different if their owners picked different emoji. NULL (any item
+    # created before this column existed, or where the user didn't pick
+    # one) falls back to categoryIcons.js's name-based default client-side.
+    icon = Column(String, nullable=True)
     description = Column(String, nullable=True)
     photo_path = Column(String, nullable=False)
     lat = Column(Float, nullable=False)
@@ -103,7 +114,8 @@ class LostItemReport(Base):
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     report_type = Column(String, nullable=False)  # "lost" | "stolen" - see REPORT_TYPES
     title = Column(String, nullable=False)
-    category = Column(String, nullable=False, index=True)
+    category = Column(String, nullable=False, index=True)  # free text - see FoundItem.category
+    icon = Column(String, nullable=True)  # see FoundItem.icon
     description = Column(String, nullable=True)
     # Serial/frame number - especially valuable for stolen bikes/equipment
     # so a finder (or the police) can positively identify the item later.

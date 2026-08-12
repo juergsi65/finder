@@ -40,3 +40,34 @@ export const notePinIcon = L.icon({
 });
 
 L.Marker.prototype.options.icon = defaultIcon;
+
+// `emoji` is user-supplied free text (see backend's validate_icon_value,
+// which only checks length) - L.divIcon renders its `html` as raw DOM, so
+// this MUST be escaped before interpolation or a crafted "icon" value
+// becomes a stored-XSS payload rendered to every visitor of the map.
+function escapeHtml(str) {
+  return String(str).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
+const BADGE_SIZE = 38;
+
+/**
+ * Colored, optionally-pulsing circular map marker with an emoji centered
+ * in it - the "signal" markers for the main map: found items (calm,
+ * trail-green), lost/stolen reports (red family, animated to draw the
+ * eye), and note pins (neutral). Styling lives in index.css's
+ * `.map-badge*` rules since CSS keyframe animations can't be expressed
+ * as Tailwind utility classes alone.
+ */
+export function buildBadgeIcon(emoji, variant = "found") {
+  return L.divIcon({
+    html: `<div class="map-badge map-badge--${variant}"><span>${escapeHtml(emoji || "📦")}</span></div>`,
+    className: "map-badge-wrapper",
+    iconSize: [BADGE_SIZE, BADGE_SIZE],
+    iconAnchor: [BADGE_SIZE / 2, BADGE_SIZE / 2],
+    popupAnchor: [0, -BADGE_SIZE / 2 - 2],
+  });
+}

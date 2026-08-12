@@ -101,10 +101,11 @@ export async function getFoundItem(id) {
  * upload-progress events on the (mandatory) photo, reported via
  * `onProgress` (0-100) so the UI can show a percentage bar.
  */
-export function createFoundItem({ title, category, description, lat, lng, foundDate, photo, onProgress }) {
+export function createFoundItem({ title, category, icon, description, lat, lng, foundDate, photo, onProgress }) {
   const form = new FormData();
   form.append("title", title);
   form.append("category", category);
+  if (icon) form.append("icon", icon);
   if (description) form.append("description", description);
   form.append("lat", lat);
   form.append("lng", lng);
@@ -126,6 +127,7 @@ export function createLostItemReport({
   reportType,
   title,
   category,
+  icon,
   description,
   serialNumber,
   lat,
@@ -138,6 +140,7 @@ export function createLostItemReport({
   form.append("report_type", reportType);
   form.append("title", title);
   form.append("category", category);
+  if (icon) form.append("icon", icon);
   if (description) form.append("description", description);
   if (serialNumber) form.append("serial_number", serialNumber);
   form.append("lat", lat);
@@ -146,6 +149,18 @@ export function createLostItemReport({
   if (photo) form.append("photo", photo);
 
   return xhrMultipart("POST", "/api/lost-items", form, onProgress);
+}
+
+/** Every lost/stolen report, public - like getFoundItems, but for the
+ * "other side" of the map (see FoundItemsMap's lostItems prop). */
+export async function getLostItems({ reportType, category } = {}) {
+  const params = new URLSearchParams();
+  if (reportType) params.set("report_type", reportType);
+  if (category) params.set("category", category);
+  const qs = params.toString();
+  const res = await fetch(qs ? `/api/lost-items?${qs}` : "/api/lost-items");
+  if (!res.ok) throw new Error(await extractErrorMessage(res, "Meldungen konnten nicht geladen werden"));
+  return res.json();
 }
 
 export async function getMyLostItems() {

@@ -1,4 +1,4 @@
-import { categoryIcon } from "../categoryIcons.js";
+import { categoryIcon, categoryLabel } from "../categoryIcons.js";
 import { useTranslation } from "../i18n/LanguageContext.jsx";
 
 /**
@@ -34,7 +34,7 @@ export default function CategoryPicker({ categories, value, onChange, label, all
               <span className="text-2xl" aria-hidden>
                 {isAll ? "🗺️" : categoryIcon(c)}
               </span>
-              {isAll ? t("home.all") : t(`categories.${c}`)}
+              {isAll ? t("home.all") : categoryLabel(t, c)}
             </button>
           );
         })}
